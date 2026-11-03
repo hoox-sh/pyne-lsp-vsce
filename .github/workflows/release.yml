@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Package and publish VSIX
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run check
+
+      - name: Package VSIX
+        run: |
+          set -euo pipefail
+          VER=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$VER" != "$TAG" ]; then
+            echo "ERROR: package.json version ($VER) does not match tag ($TAG)" >&2
+            exit 1
+          fi
+          npm run package
+          ls -lh "pyne-vscode-${VER}.vsix"
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER=$(node -p "require('./package.json').version")
+          VSIX="pyne-vscode-${VER}.vsix"
+          if [ -z "${VSCE_PAT:-}" ]; then
+            echo "VSCE_PAT not set — skipping Marketplace publish (VSIX still on GitHub Release)."
+            exit 0
+          fi
+          npx --yes @vscode/vsce publish --pat "$VSCE_PAT" --packagePath "$VSIX"
+
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER=$(node -p "require('./package.json').version")
+          VSIX="pyne-vscode-${VER}.vsix"
+          if [ -z "${OVSX_PAT:-}" ]; then
+            echo "OVSX_PAT not set — skipping Open VSX (optional extra registry)."
+            exit 0
+          fi
+          # Namespace must exist on Open VSX (publisher in package.json).
+          # Do not fail the release: the VSIX is already on the GitHub Release.
+          npx --yes ovsx publish "$VSIX" -p "$OVSX_PAT" || \
+            echo "Open VSX publish failed (unknown publisher or other). VSIX remains on GitHub Release."
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: "PYNE VS Code ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: pyne-vscode-*.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
