@@ -4,3 +4,8 @@ out/
 .vscode-test/
 *.log
 .DS_Store
+
+# OpenOrchestrate runtime state
+.openorchestrate/state.db
+.openorchestrate/state.db-*
+.openorchestrate/logs/
