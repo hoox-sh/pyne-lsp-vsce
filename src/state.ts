@@ -19,6 +19,7 @@
 
 import type { LogOutputChannel, StatusBarItem } from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
+import type { SecretStore } from './secrets';
 
 /** Shared mutable host state. Avoids circular imports between lsp/install/log. */
 export const state = {
@@ -35,4 +36,6 @@ export const state = {
   globalStorageDir: undefined as string | undefined,
   /** Extension install root (to read the bundled `themes/*.json`). */
   extensionPath: undefined as string | undefined,
+  /** SecretStorage for the Pro API key (never settings.json). */
+  secrets: undefined as SecretStore | undefined,
 };

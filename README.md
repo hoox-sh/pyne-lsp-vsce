@@ -118,7 +118,7 @@ git tag v0.5.7 && git push origin main --tags
 
 | Feature | Details |
 |---------|---------|
-| **File types** | **`.pyne`** (primary), `.pine`, `.pinev5`, `.pinev6`, `.pinescript` |
+| **File types** | **`.pyne`** (primary), `.pine`, `.psc`, `.pinev5`, `.pinev6`, `.pinescript` — all language id **`pinescript`** (AXIS `when` target) |
 | **Syntax highlighting** | TextMate grammar — namespaces (`ta.`, `strategy.`, `color.`…), bitwise ops, annotations (`//@version=`), `#hex` colors, history refs, UDTs, multiline strings |
 | **Snippets** | `indicator`, `strategy`, `library`, `type`, `enum`, `input.*` (incl. color/timeframe/session), `plot`, `ta.*` (incl. macd/bb), `strategy.entry`/`exit`/`close`, `request.security`, `for`/`for in`/`if`/`switch`, multiline string, … |
 | **Language Server** | Diagnostics, autocomplete + docs, hover, signature help, document symbols, formatting (full/range/on-type), Convert to v6 (`pip install "hoox-pyne[lsp]"`) |
@@ -130,7 +130,7 @@ git tag v0.5.7 && git push origin main --tags
 | **Status bar** | `PYNE LSP` indicator (click → server output) |
 | **Auto-detect LSP** | `pyne-lsp` (or alias `pynescript-lsp`) on `PATH`, or `python3 -m pynescript.langserver` |
 | **Auto-install server** | Prompts (or auto-installs) `hoox-pyne[lsp]` with pip when the server is missing |
-| **Pro API** | `PYNE: Run on Pro` — POST active script to your backend `/run` (local or hosted `pynescript.online`) |
+| **Pro API** | `PYNE: Smoke /run (one bar)` — POST the buffer plus one synthetic bar to `/run` (not a chart; use AXIS for plots) |
 | **Backend** | `PYNE: Install Backend (Pro API)`, `PYNE: Start Backend`, `PYNE: Test Backend Connection` |
 | **PYNE MCP (recommended)** | Agent-mode tools for Copilot / Claude / Cursor via `pyne-mcp` |
 | **Themes** | **AXIS Void / Hoox Signal / PYNE Volt** — AXIS-matched syntax highlighting + hover cards |
@@ -151,11 +151,11 @@ Full feature matrix, deployment modes, settings reference, and command list: [`F
 The extension has two independent subsystems:
 
 1. **Language server (`pyne-lsp`)** — a local stdio process spawned from your Python environment (`pip install "hoox-pyne[lsp]"`). It never calls a backend.
-2. **Pro API client** — plain `fetch` calls against a configurable backend (**PYNE: Run on Pro** → `POST /run`, **PYNE: Test Backend Connection** → `GET /health`).
+2. **Pro API client** — plain `fetch` calls against a configurable backend (**PYNE: Smoke /run (one bar)** → `POST /run` with one synthetic bar, **PYNE: Test Backend Connection** → `GET /health`). Chart run is **AXIS: Run Script**, not this extension.
 
 | Mode | How | Auth |
 | --- | --- | --- |
-| **Hosted Pro (remote)** | `pynescript.backend.useHosted=true` → `https://pynescript.online` | Pro API key required (`pynescript.pro.apiKey`) |
+| **Hosted Pro (remote)** | `pynescript.backend.useHosted=true` → `https://pynescript.online` | Pro API key required (**PYNE: Set Pro API Key** → SecretStorage) |
 | **Self-hosted local** | Flask Pro API on `http://127.0.0.1:5002` (`make run`, `make docker-up`, or **PYNE: Start Backend**) | No key for `POST /run` (free-tier endpoint); key accepted if set |
 | **Self-hosted remote** | Same Flask Pro API on your own host (`pynescript.backend.url`) | Same as local (key optional; recommended if exposed) |
 | **Self-hosted edge** | [`pyne-worker`](https://github.com/jango-blockchained/pyne-worker) on Cloudflare — `POST /run`, `/health`, `/scripts`, `/cron/*` | Tenant `Bearer hx_live_…` key when auth is enabled on the worker |
@@ -205,7 +205,7 @@ The three contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**) are
 | `pynescript.diagnostics.semantic` | `false` | Opt-in semantic checks |
 | `pynescript.completion.snippets` | `true` | Snippets in autocomplete |
 | `pynescript.hover.enabled` | `true` | Hover cards |
-| `pynescript.inlayHints.parameters` | `true` | Parameter-name hints |
+| `pynescript.inlayHints.parameters` | `false` | Parameter-name hints (opt-in) |
 | `pynescript.signatureHelp.enabled` | `true` | Signature help |
 | `pynescript.semanticTokens.enabled` | `true` | Semantic token colors |
 | `pynescript.documentHighlight.enabled` | `true` | Highlight occurrences |
@@ -230,8 +230,7 @@ The three contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**) are
 
 | Key | Default | Notes |
 | --- | --- | --- |
-| `pynescript.pro.enabled` | `false` | Enable **Run on Pro** |
-| `pynescript.pro.apiKey` | `""` | Pro API key (stored in plain text) |
+| `pynescript.pro.enabled` | `false` | Enable hosted Pro (`pynescript.online`). Local one-bar smoke does not need this |
 | `pynescript.backend.url` | `http://127.0.0.1:5002` | Self-hosted base URL |
 | `pynescript.backend.useHosted` | `false` | Use the hosted backend |
 | `pynescript.backend.hostedUrl` | `https://pynescript.online` | Hosted base URL |
@@ -260,10 +259,11 @@ The three contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**) are
 ```jsonc
 {
   "pynescript.pro.enabled": true,
-  "pynescript.backend.useHosted": true,
-  "pynescript.pro.apiKey": "pk_live_…"
+  "pynescript.backend.useHosted": true
 }
 ```
+
+Then run **PYNE: Set Pro API Key** (SecretStorage; never `settings.json`).
 
 ## Commands
 
@@ -275,7 +275,9 @@ The three contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**) are
 | **PYNE: Install Language Server** | `pip install hoox-pyne[lsp]` |
 | **PYNE: Format Document** | Full-document format |
 | **PYNE: Convert to Pine v6** | Rewrite the document toward v6 |
-| **PYNE: Run on Pro** | POST the script to the Pro `/run` endpoint |
+| **PYNE: Smoke /run (one bar)** | POST the buffer plus one synthetic bar to `/run` |
+| **PYNE: Set Pro API Key** | Store the hosted Pro key in SecretStorage |
+| **PYNE: Clear Pro API Key** | Delete the hosted Pro key from SecretStorage |
 | **PYNE: Install Backend (Pro API)** | `pip install hoox-pyne[pro,lsp]` |
 | **PYNE: Start Backend** | `python -m backend.app` from a checkout |
 | **PYNE: Test Backend Connection** | Ping `/health` |

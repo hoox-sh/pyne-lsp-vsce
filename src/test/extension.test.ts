@@ -37,6 +37,8 @@ const EXPECTED_COMMANDS = [
   'pynescript.startBackend',
   'pynescript.testBackend',
   'pynescript.selectSyntax',
+  'pynescript.secrets.setProKey',
+  'pynescript.secrets.clearProKey',
 ];
 
 const EXPECTED_SETTINGS = [
@@ -61,7 +63,6 @@ const EXPECTED_SETTINGS = [
   'pynescript.documentLink.enabled',
   'pynescript.codeAction.enabled',
   'pynescript.pro.enabled',
-  'pynescript.pro.apiKey',
   'pynescript.backend.url',
   'pynescript.backend.useHosted',
   'pynescript.backend.hostedUrl',
@@ -102,6 +103,10 @@ suite('PYNE Extension Structure', () => {
     for (const key of EXPECTED_SETTINGS) {
       assert.ok(settings.includes(key), `Missing setting: ${key}`);
     }
+    assert.ok(
+      !settings.includes('pynescript.pro.apiKey'),
+      'pynescript.pro.apiKey must not be a configuration property — SecretStorage only',
+    );
     assert.strictEqual(new Set(settings).size, settings.length, 'Duplicate setting key');
   });
 
@@ -123,9 +128,11 @@ suite('PYNE Extension Structure', () => {
     assert.ok(lang, 'pinescript language contribution');
     assert.ok(lang.extensions.includes('.pyne'));
     assert.ok(lang.extensions.includes('.pine'));
+    assert.ok(lang.extensions.includes('.psc'));
     assert.ok(lang.extensions.includes('.pinev5'));
     assert.ok(lang.extensions.includes('.pinev6'));
     assert.ok(lang.extensions.includes('.pinescript'));
+    assert.strictEqual(pkg.contributes.languages.length, 1);
   });
 });
 
@@ -155,7 +162,7 @@ suite('PYNE Extension Activation', () => {
     assert.strictEqual(config.get('diagnostics.enabled'), true);
     assert.strictEqual(config.get('diagnostics.style'), false);
     assert.strictEqual(config.get('diagnostics.semantic'), false);
-    assert.strictEqual(config.get('inlayHints.parameters'), true);
+    assert.strictEqual(config.get('inlayHints.parameters'), false);
     assert.strictEqual(config.get('formatting.enabled'), true);
     assert.strictEqual(config.get('completion.snippets'), true);
     assert.strictEqual(config.get('hover.enabled'), true);
@@ -180,6 +187,12 @@ suite('PYNE Extension Activation', () => {
     assert.strictEqual(after, !before);
     // Restore
     await vscode.commands.executeCommand('pynescript.toggleHover');
+  }).timeout(15000);
+
+  test('example .pine opens as pinescript for AXIS when-clauses', async () => {
+    const example = path.resolve(__dirname, '../../examples/rsi_strategy.pine');
+    const doc = await vscode.workspace.openTextDocument(example);
+    assert.strictEqual(doc.languageId, 'pinescript');
   }).timeout(15000);
 
   test('openDocumentLink reports no link when none present', async () => {

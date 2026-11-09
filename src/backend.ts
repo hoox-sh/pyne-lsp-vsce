@@ -19,10 +19,14 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { window, workspace } from 'vscode';
+import { commands, extensions, window, workspace } from 'vscode';
 import { cfg, expandWorkspaceVars, resolveBackendUrl } from './config';
 import { resolvePythonForInstall } from './install';
+import { AXIS_IDE_EXTENSION_ID, AXIS_RUN_SCRIPT_COMMAND, isPineDocument } from './language';
 import { log } from './log';
+import { summarizeSmokeResult } from './messages';
+import { getProKey } from './secrets';
+import { state } from './state';
 
 /**
  * Start the PYNE backend from a checkout (`python -m backend.app`) in a
@@ -93,26 +97,37 @@ export async function testBackend(): Promise<void> {
   }
 }
 
-/** POST the active Pine buffer to the Pro `/run` endpoint. */
+export function isAxisIdePresent(): boolean {
+  return !!extensions.getExtension(AXIS_IDE_EXTENSION_ID);
+}
+
+export { summarizeSmokeResult } from './messages';
+
+/**
+ * POST the active Pine buffer to `/run` with **one synthetic bar**.
+ *
+ * This is a compile/execute smoke test. AXIS owns chart run (history bars +
+ * plots). PYNE must not open a second chart.
+ */
 export async function runOnPro(): Promise<void> {
-  if (cfg<boolean>('pro.enabled') === false) {
+  const editor = window.activeTextEditor;
+  if (!editor || !isPineDocument(editor.document)) {
+    void window.showWarningMessage('No active .pyne / .pine document to smoke-test.');
+    return;
+  }
+  const apiKey = state.secrets ? ((await getProKey(state.secrets)) || '').trim() : '';
+  const useHosted = cfg<boolean>('backend.useHosted') === true;
+  const endpoint = resolveBackendUrl();
+  if (useHosted && cfg<boolean>('pro.enabled') === false) {
     void window.showWarningMessage(
-      'PYNE Pro is disabled. Enable pynescript.pro.enabled to run on Pro.',
+      'Hosted /run is off. Enable pynescript.pro.enabled or turn off pynescript.backend.useHosted for a local smoke.',
     );
     return;
   }
-  const editor = window.activeTextEditor;
-  if (!editor || editor.document.languageId !== 'pinescript') {
-    void window.showWarningMessage('No active .pyne / .pine document to run.');
-    return;
-  }
-  const apiKey = (cfg<string>('pro.apiKey') || '').trim();
-  const useHosted = cfg<boolean>('backend.useHosted') === true;
-  const endpoint = resolveBackendUrl();
   if (useHosted && !apiKey) {
     void window.showWarningMessage(
-      'PYNE Pro: the hosted backend (pynescript.online) requires pynescript.pro.apiKey. ' +
-        'Set it or turn off pynescript.backend.useHosted.',
+      'PYNE: the hosted backend (pynescript.online) requires a Pro API key. ' +
+        'Run “PYNE: Set Pro API Key” (SecretStorage) or turn off pynescript.backend.useHosted.',
     );
     return;
   }
@@ -129,32 +144,42 @@ export async function runOnPro(): Promise<void> {
   if (apiKey) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
-  log(`PYNE Pro POST ${url} (script ${source.length} chars)`);
+  log(`PYNE /run smoke POST ${url} (script ${source.length} chars, 1 bar)`);
   try {
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-    let result: any;
+    let result: Record<string, unknown>;
     try {
-      result = await res.json();
+      result = (await res.json()) as Record<string, unknown>;
     } catch {
       result = { status: 'error', code: 'INVALID_RESPONSE', message: `HTTP ${res.status}` };
     }
     if (!res.ok) {
       void window.showErrorMessage(
-        `PYNE Pro run failed: ${result?.code ?? 'HTTP ' + res.status} — ${result?.message ?? ''}`,
+        `PYNE /run smoke failed: ${String(result.code ?? 'HTTP ' + res.status)} — ${String(result.message ?? '')}`,
       );
       return;
     }
     if (result.status === 'error') {
       void window.showErrorMessage(
-        `PYNE Pro: ${result?.code ?? 'error'} — ${result?.message ?? ''}`,
+        `PYNE /run smoke: ${String(result.code ?? 'error')} — ${String(result.message ?? '')}`,
       );
       return;
     }
-    void window.showInformationMessage('PYNE Pro: script ran successfully.');
-    log(`PYNE Pro result: ${JSON.stringify(result).slice(0, 2000)}`);
+    log(`PYNE /run smoke result: ${JSON.stringify(result).slice(0, 2000)}`);
+    const axis = isAxisIdePresent();
+    const pick = await window.showInformationMessage(
+      summarizeSmokeResult(result),
+      ...(axis ? (['AXIS: Run Script', 'Show Output'] as const) : (['Show Output'] as const)),
+    );
+    if (pick === 'Show Output') {
+      // Output channel is owned by the extension host; command is registered.
+      await commands.executeCommand('pynescript.showLspOutput');
+    } else if (pick === 'AXIS: Run Script') {
+      await commands.executeCommand(AXIS_RUN_SCRIPT_COMMAND);
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    log(`PYNE Pro request failed: ${msg}`);
-    void window.showErrorMessage(`PYNE Pro request failed: ${msg}`);
+    log(`PYNE /run smoke failed: ${msg}`);
+    void window.showErrorMessage(`PYNE /run smoke failed: ${msg}`);
   }
 }

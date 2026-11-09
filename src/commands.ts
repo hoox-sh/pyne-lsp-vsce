@@ -45,4 +45,6 @@ export const COMMANDS = {
   startBackend: 'pynescript.startBackend',
   testBackend: 'pynescript.testBackend',
   selectSyntax: 'pynescript.selectSyntax',
+  setProKey: 'pynescript.secrets.setProKey',
+  clearProKey: 'pynescript.secrets.clearProKey',
 } as const;

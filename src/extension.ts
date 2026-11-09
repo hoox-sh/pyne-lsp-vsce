@@ -28,18 +28,30 @@
 import {
   commands,
   ConfigurationTarget,
+  Diagnostic,
+  DiagnosticSeverity,
   env,
   ExtensionContext,
+  languages,
+  Position,
+  ProgressLocation,
   Range,
   StatusBarAlignment,
+  TextDocument,
   TextEdit,
   Uri,
   window,
   workspace,
 } from 'vscode';
 import { ExecuteCommandRequest } from 'vscode-languageclient/node';
-import { runOnPro, startBackend, testBackend } from './backend';
+import { isAxisIdePresent, runOnPro, startBackend, testBackend } from './backend';
 import { COMMANDS } from './commands';
+import {
+  LEGACY_PRO_KEY_SETTING,
+  clearProKey,
+  migrateLegacyProKey,
+  setProKey,
+} from './secrets';
 import {
   cfg,
   PINESCRIPT,
@@ -47,8 +59,10 @@ import {
   togglePinescriptEditor,
   togglePyneBool,
 } from './config';
-import { convertViaPython } from './convert';
+import { convertSuccessMessage, convertViaPython, type ConvertToV6Payload } from './convert';
+import { LOOKAHEAD_STATIC_NOTE, scanPineLookahead } from './lookahead';
 import { installBackend, installLanguageServer, setLanguageServerRestarter } from './install';
+import { isPineDocument, PINE_LANGUAGE_ID, shouldNormalizeToPinescript } from './language';
 import { log, setStatus } from './log';
 import {
   getClient,
@@ -63,6 +77,24 @@ import { applyPyneSyntax, themeChoices } from './syntax';
 
 export { COMMANDS } from './commands';
 export { resolveLspLaunch } from './lsp';
+export { PINE_LANGUAGE_ID } from './language';
+
+async function normalizePineLanguage(doc: TextDocument): Promise<void> {
+  if (doc.uri.scheme !== 'file' && doc.uri.scheme !== 'untitled') {
+    return;
+  }
+  if (!shouldNormalizeToPinescript(doc.languageId, doc.fileName || doc.uri.fsPath)) {
+    return;
+  }
+  try {
+    log(`Normalizing languageId ${doc.languageId} → ${PINE_LANGUAGE_ID} (${doc.uri.toString()})`);
+    await languages.setTextDocumentLanguage(doc, PINE_LANGUAGE_ID);
+  } catch (err) {
+    log(
+      `Could not set languageId to ${PINE_LANGUAGE_ID}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
 
 function registerCommands(context: ExtensionContext): void {
   context.subscriptions.push(
@@ -143,7 +175,7 @@ function registerCommands(context: ExtensionContext): void {
         void window.showWarningMessage('No active editor to format.');
         return;
       }
-      if (editor.document.languageId !== 'pinescript') {
+      if (!isPineDocument(editor.document)) {
         void window.showWarningMessage('Format Document is only available for .pyne / .pine files.');
         return;
       }
@@ -193,32 +225,41 @@ function registerCommands(context: ExtensionContext): void {
         void window.showWarningMessage('No active editor to convert.');
         return;
       }
-      if (editor.document.languageId !== 'pinescript') {
+      if (!isPineDocument(editor.document)) {
         void window.showWarningMessage('Convert to Pine v6 is only available for .pyne / .pine files.');
         return;
       }
       const prev = editor.document.getText();
       let next = prev;
+      let fromVersion: number | undefined;
       const client = getClient();
-      try {
+      const convert = async (): Promise<void> => {
         if (isClientRunning() && client) {
           const payload = (await client.sendRequest(ExecuteCommandRequest.type, {
             command: COMMANDS.convertToV6,
             arguments: [editor.document.uri.toString()],
-          })) as { source?: string; from_version?: number; changed?: boolean } | null;
+          })) as ConvertToV6Payload | null;
           if (payload && typeof payload.source === 'string') {
             next = payload.source;
-          } else {
-            next = convertViaPython(prev);
+            fromVersion = payload.from_version;
+            return;
           }
-        } else {
-          next = convertViaPython(prev);
         }
+        next = await convertViaPython(prev);
+      };
+      try {
+        await window.withProgress(
+          {
+            location: ProgressLocation.Notification,
+            title: 'PYNE: Converting to Pine v6…',
+          },
+          () => convert(),
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         log(`convertToV6 failed: ${msg}`);
         try {
-          next = convertViaPython(prev);
+          next = await convertViaPython(prev);
         } catch (err2) {
           const msg2 = err2 instanceof Error ? err2.message : String(err2);
           void window.showErrorMessage(`Convert to Pine v6 failed: ${msg2}`);
@@ -238,7 +279,7 @@ function registerCommands(context: ExtensionContext): void {
         void window.showErrorMessage('Convert to Pine v6 could not apply the edit.');
         return;
       }
-      void window.showInformationMessage('Converted script to Pine v6.');
+      void window.showInformationMessage(convertSuccessMessage(fromVersion));
     }),
   );
 
@@ -342,7 +383,7 @@ function registerCommands(context: ExtensionContext): void {
   context.subscriptions.push(
     commands.registerCommand(COMMANDS.openDocumentLink, async () => {
       const editor = window.activeTextEditor;
-      if (!editor || editor.document.languageId !== 'pinescript') {
+      if (!editor || !isPineDocument(editor.document)) {
         return;
       }
       const { document } = editor;
@@ -374,11 +415,65 @@ function registerCommands(context: ExtensionContext): void {
       await runOnPro();
     }),
   );
+
+  context.subscriptions.push(
+    commands.registerCommand(COMMANDS.setProKey, async () => {
+      if (!state.secrets) {
+        void window.showErrorMessage('PYNE SecretStorage is not ready.');
+        return;
+      }
+      const raw = await window.showInputBox({
+        password: true,
+        ignoreFocusOut: true,
+        prompt:
+          'Paste a PYNE Pro API key. Empty input clears the stored key. Keys live in SecretStorage, never settings.json.',
+      });
+      if (raw === undefined) return;
+      const result = await setProKey(state.secrets, raw);
+      if (!result.ok) {
+        void window.showErrorMessage(result.error);
+        return;
+      }
+      void window.showInformationMessage(
+        raw.trim()
+          ? 'PYNE Pro key saved (SecretStorage).'
+          : 'PYNE Pro key cleared (SecretStorage).',
+      );
+    }),
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand(COMMANDS.clearProKey, async () => {
+      if (!state.secrets) {
+        void window.showErrorMessage('PYNE SecretStorage is not ready.');
+        return;
+      }
+      const result = await clearProKey(state.secrets);
+      if (!result.ok) {
+        void window.showErrorMessage(result.error);
+        return;
+      }
+      void window.showInformationMessage('PYNE Pro key cleared (SecretStorage).');
+    }),
+  );
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
   state.globalStorageDir = context.globalStorageUri.fsPath;
   state.extensionPath = context.extensionPath;
+  state.secrets = context.secrets;
+  try {
+    const inspect = workspace.getConfiguration('pynescript').inspect<string>(LEGACY_PRO_KEY_SETTING);
+    const leftover =
+      inspect?.workspaceFolderValue ?? inspect?.workspaceValue ?? inspect?.globalValue;
+    await migrateLegacyProKey(context.secrets, leftover, async () => {
+      const cfgObj = workspace.getConfiguration('pynescript');
+      await cfgObj.update(LEGACY_PRO_KEY_SETTING, undefined, ConfigurationTarget.Global);
+      await cfgObj.update(LEGACY_PRO_KEY_SETTING, undefined, ConfigurationTarget.Workspace);
+    });
+  } catch {
+    /* leftover setting may already be gone */
+  }
   setLanguageServerRestarter(() => withClientLock(() => startClient()));
   state.output = window.createOutputChannel('PYNE Language Server', { log: true });
   context.subscriptions.push(state.output);
@@ -393,6 +488,59 @@ export async function activate(context: ExtensionContext): Promise<void> {
   // Register commands first so palette never shows "command not found"
   // even if the language server fails to start.
   registerCommands(context);
+
+  const lookaheadDiags = languages.createDiagnosticCollection('pynescript.lookahead');
+  context.subscriptions.push(lookaheadDiags);
+  const refreshLookahead = (doc: TextDocument): void => {
+    if (!isPineDocument(doc)) {
+      lookaheadDiags.delete(doc.uri);
+      return;
+    }
+    const report = scanPineLookahead(doc.getText());
+    const items: Diagnostic[] = [];
+    for (const hit of report.hits) {
+      const lineNo = Math.max(0, Math.min(hit.line, Math.max(doc.lineCount - 1, 0)));
+      let lineLen = 0;
+      try {
+        lineLen = doc.lineAt(lineNo).text.length;
+      } catch {
+        lineLen = 0;
+      }
+      const startCol = Math.max(0, Math.min(hit.col, lineLen));
+      const endCol = Math.max(startCol + 1, Math.min(startCol + Math.max(hit.text.length, 1), lineLen));
+      const diag = new Diagnostic(
+        new Range(new Position(lineNo, startCol), new Position(lineNo, endCol)),
+        `Static grep: ${hit.kind} may repaint on historical bars. ${LOOKAHEAD_STATIC_NOTE}`,
+        DiagnosticSeverity.Warning,
+      );
+      diag.source = 'PYNE';
+      diag.code = 'pyne.lookahead.static';
+      items.push(diag);
+    }
+    lookaheadDiags.set(doc.uri, items);
+  };
+  for (const doc of workspace.textDocuments) {
+    refreshLookahead(doc);
+  }
+  context.subscriptions.push(
+    workspace.onDidOpenTextDocument((doc) => refreshLookahead(doc)),
+    workspace.onDidChangeTextDocument((e) => refreshLookahead(e.document)),
+    workspace.onDidCloseTextDocument((doc) => lookaheadDiags.delete(doc.uri)),
+  );
+
+  void commands.executeCommand('setContext', 'pynescript.axisPresent', isAxisIdePresent());
+
+  const normalizeOpenDocs = async (): Promise<void> => {
+    for (const doc of workspace.textDocuments) {
+      await normalizePineLanguage(doc);
+    }
+  };
+  context.subscriptions.push(
+    workspace.onDidOpenTextDocument((doc) => {
+      void normalizePineLanguage(doc);
+    }),
+  );
+  void normalizeOpenDocs();
 
   context.subscriptions.push(
     workspace.onDidChangeConfiguration(async (e) => {
@@ -434,7 +582,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   context.subscriptions.push(
     workspace.onWillSaveTextDocument((event) => {
       const { document } = event;
-      if (document.languageId !== 'pinescript') {
+      if (!isPineDocument(document)) {
         return;
       }
       if (cfg<boolean>('formatOnSave.enabled') === false) {

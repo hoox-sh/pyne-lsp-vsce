@@ -7,7 +7,7 @@ okf_bundle_tags: ["openorchestrate", "javascript", "typescript"]
 
 # pyne
 
-Syntax highlighting, diagnostics, autocomplete, hover, and formatting for .pyne / .pine sources. Powered by hoox-pyne. Part of the HOOX open trading stack. Unofficial — not affiliated with TradingView, Inc.
+Syntax highlighting, diagnostics, autocomplete, hover, and formatting for .pyne / .pine sources (language id `pinescript`). Powered by hoox-pyne. Part of the HOOX open trading stack. Unofficial — not affiliated with TradingView, Inc.
 
 ## Start Here
 

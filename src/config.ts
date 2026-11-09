@@ -18,6 +18,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { ConfigurationTarget, window, workspace } from 'vscode';
+import { PINE_LANGUAGE_ID } from './language';
 
 export function cfg<T>(key: string): T | undefined {
   return workspace.getConfiguration('pynescript').get<T>(key);
@@ -35,7 +36,7 @@ export function serverSettings(): Record<string, unknown> {
     diagnosticsEnabled: cfg<boolean>('diagnostics.enabled') !== false,
     styleDiagnostics: cfg<boolean>('diagnostics.style') === true,
     semanticDiagnostics: cfg<boolean>('diagnostics.semantic') === true,
-    inlayHintsParameters: cfg<boolean>('inlayHints.parameters') !== false,
+    inlayHintsParameters: cfg<boolean>('inlayHints.parameters') === true,
     completionUserSymbols: true,
   };
 }
@@ -61,7 +62,7 @@ export async function togglePyneBool(key: string, label: string): Promise<boolea
   return next;
 }
 
-export const PINESCRIPT = { languageId: 'pinescript' } as const;
+export const PINESCRIPT = { languageId: PINE_LANGUAGE_ID } as const;
 
 export function pinescriptEditorOn(key: string): boolean {
   const v = workspace.getConfiguration('editor', PINESCRIPT).get(key);

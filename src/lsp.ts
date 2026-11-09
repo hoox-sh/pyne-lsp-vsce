@@ -121,9 +121,16 @@ export function buildClientOptions(): LanguageClientOptions {
     documentSelector: [
       { language: 'pinescript', scheme: 'file' },
       { language: 'pinescript', scheme: 'untitled' },
+      // Accept PyneIDE / manual language modes until normalizePineLanguage remaps them.
+      { language: 'pine', scheme: 'file' },
+      { language: 'pine', scheme: 'untitled' },
+      { language: 'pyne', scheme: 'file' },
+      { language: 'pyne', scheme: 'untitled' },
     ],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher('**/*.{pyne,pine,pinev5,pinev6,pinescript}'),
+      fileEvents: workspace.createFileSystemWatcher(
+        '**/*.{pyne,pine,pinev5,pinev6,pinescript,psc}',
+      ),
       // The client sends workspace/didChangeConfiguration with the
       // `pynescript` section; the server applies it live (no restart).
       configurationSection: 'pynescript',
@@ -215,6 +222,18 @@ export function buildClientOptions(): LanguageClientOptions {
           return null;
         }
         return next(document, range, token);
+      },
+      provideDocumentFormattingEdits(document, options, token, next) {
+        if (cfg<boolean>('formatting.enabled') === false) {
+          return [];
+        }
+        return next(document, options, token);
+      },
+      provideDocumentRangeFormattingEdits(document, range, options, token, next) {
+        if (cfg<boolean>('formatting.enabled') === false) {
+          return [];
+        }
+        return next(document, range, options, token);
       },
       provideLinkedEditingRange(document, position, token, next) {
         if (!settingOn('linkedEditing.enabled')) {

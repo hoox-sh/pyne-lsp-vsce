@@ -2,7 +2,7 @@
   "name": "pyne",
   "displayName": "PYNE Language Support",
   "description": "Syntax highlighting, diagnostics, autocomplete, hover, and formatting for .pyne / .pine sources. Powered by hoox-pyne. Part of the HOOX open trading stack. Unofficial — not affiliated with TradingView, Inc.",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "publisher": "hoox-sh",
   "license": "AGPL-3.0-or-later",
   "author": {
@@ -52,30 +52,48 @@
     "strategy"
   ],
   "activationEvents": [
+    "onLanguage:pinescript",
     "workspaceContains:**/*.pyne",
     "workspaceContains:**/*.pine",
     "workspaceContains:**/*.pinev5",
     "workspaceContains:**/*.pinev6",
-    "workspaceContains:**/*.pinescript"
+    "workspaceContains:**/*.pinescript",
+    "workspaceContains:**/*.psc",
+    "onCommand:pynescript.secrets.setProKey",
+    "onCommand:pynescript.secrets.clearProKey"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Starts a local Python language server (pyne-lsp) from the user environment."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Needs a local filesystem and Python environment for pyne-lsp."
+    }
+  },
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
         "id": "pinescript",
         "aliases": [
+          "Pine Script",
           "PYNE",
-          "pyne",
           "pinescript",
+          "pine",
+          "pyne",
           "Pine"
         ],
         "extensions": [
           ".pyne",
           ".pine",
+          ".psc",
           ".pinev5",
           ".pinev6",
           ".pinescript"
         ],
+        "firstLine": "^\\s*//@version=\\d+",
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./media/icon.png",
@@ -88,6 +106,16 @@
         "language": "pinescript",
         "scopeName": "source.pinescript",
         "path": "./syntaxes/pinescript.tmLanguage.json"
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "series",
+        "description": "Pine series values (bar-varying)"
+      },
+      {
+        "id": "simple",
+        "description": "Pine simple values (const over bars)"
       }
     ],
     "snippets": [
@@ -122,7 +150,24 @@
         "editor.insertSpaces": true,
         "editor.wordBasedSuggestions": "off",
         "editor.defaultFormatter": "hoox-sh.pyne",
+        "editor.inlayHints.enabled": "off",
         "files.insertFinalNewline": true
+      },
+      "files.associations": {
+        "*.pyne": "pinescript",
+        "*.pine": "pinescript",
+        "*.psc": "pinescript",
+        "*.pinev5": "pinescript",
+        "*.pinev6": "pinescript",
+        "*.pinescript": "pinescript"
+      },
+      "explorer.fileNesting.patterns": {
+        "*.pyne": "${capture}.axis.json, ${capture}.toml",
+        "*.pine": "${capture}.axis.json, ${capture}.toml",
+        "*.psc": "${capture}.axis.json, ${capture}.toml",
+        "*.pinev5": "${capture}.axis.json, ${capture}.toml",
+        "*.pinev6": "${capture}.axis.json, ${capture}.toml",
+        "*.pinescript": "${capture}.axis.json, ${capture}.toml"
       }
     },
     "configuration": [
@@ -221,8 +266,8 @@
           },
           "pynescript.inlayHints.parameters": {
             "type": "boolean",
-            "default": true,
-            "description": "Show parameter-name hints in function calls."
+            "default": false,
+            "description": "Show parameter-name hints in function calls. Off by default."
           },
           "pynescript.signatureHelp.enabled": {
             "type": "boolean",
@@ -310,13 +355,7 @@
           "pynescript.pro.enabled": {
             "type": "boolean",
             "default": false,
-            "markdownDescription": "Enable PYNE Pro features such as **Run on Pro**. Requires `#pynescript.pro.apiKey#` and a reachable backend."
-          },
-          "pynescript.pro.apiKey": {
-            "type": "string",
-            "default": "",
-            "password": true,
-            "markdownDescription": "Pro API key minted with `POST /auth/create_key` on your Pro instance. Stored in VS Code settings in plain text."
+            "markdownDescription": "Enable hosted Pro features (pynescript.online). Local **Smoke /run (one bar)** does not need this. Chart run belongs to AXIS (**AXIS: Run Script**), not this setting. The Pro API key is **not** a setting — use **PYNE: Set Pro API Key** (SecretStorage)."
           },
           "pynescript.backend.url": {
             "type": "string",
@@ -357,6 +396,7 @@
         "command": "pynescript.formatDocument",
         "title": "Format Document",
         "category": "PYNE",
+        "enablement": "editorLangId == pinescript",
         "description": "Format the active Pine document"
       },
       {
@@ -375,7 +415,8 @@
         "command": "pynescript.convertToV6",
         "title": "Convert to Pine v6",
         "category": "PYNE",
-        "description": "Rewrite the active Pine document toward v6"
+        "enablement": "editorLangId == pinescript",
+        "description": "Rewrite the active Pine document toward v6 (local; does not upload source)"
       },
       {
         "command": "pynescript.diagnosticsToggle",
@@ -465,13 +506,15 @@
         "command": "pynescript.openDocumentLink",
         "title": "Open Document Link",
         "category": "PYNE",
+        "enablement": "editorLangId == pinescript",
         "description": "Open the http(s) link under the cursor"
       },
       {
         "command": "pynescript.runOnPro",
-        "title": "Run on Pro",
+        "title": "Smoke /run (one bar)",
         "category": "PYNE",
-        "description": "Send the active script to the PYNE Pro API /run endpoint"
+        "enablement": "editorLangId == pinescript",
+        "description": "POST the buffer plus one synthetic OHLCV bar to /run. Compile/execute smoke only — not a chart. Use AXIS: Run Script for history bars and plots."
       },
       {
         "command": "pynescript.installLanguageServer",
@@ -502,6 +545,18 @@
         "title": "Test Backend Connection",
         "category": "PYNE",
         "description": "Ping the configured backend /health endpoint"
+      },
+      {
+        "command": "pynescript.secrets.setProKey",
+        "title": "Set Pro API Key",
+        "category": "PYNE",
+        "description": "Store the hosted Pro API key in SecretStorage (never settings.json). Empty input clears."
+      },
+      {
+        "command": "pynescript.secrets.clearProKey",
+        "title": "Clear Pro API Key",
+        "category": "PYNE",
+        "description": "Delete the hosted Pro API key from SecretStorage"
       }
     ],
     "menus": {
@@ -571,7 +626,7 @@
         },
         {
           "command": "pynescript.runOnPro",
-          "when": "editorLangId == pinescript && config.pynescript.pro.enabled"
+          "when": "editorLangId == pinescript"
         },
         {
           "command": "pynescript.installLanguageServer"
@@ -583,10 +638,17 @@
           "command": "pynescript.installBackend"
         },
         {
-          "command": "pynescript.startBackend"
+          "command": "pynescript.startBackend",
+          "when": "!config.pynescript.backend.useHosted"
         },
         {
           "command": "pynescript.testBackend"
+        },
+        {
+          "command": "pynescript.secrets.setProKey"
+        },
+        {
+          "command": "pynescript.secrets.clearProKey"
         }
       ],
       "editor/context": [
@@ -597,7 +659,7 @@
         },
         {
           "command": "pynescript.convertToV6",
-          "when": "editorLangId == pinescript",
+          "when": "editorLangId == pinescript && !editorReadonly",
           "group": "1_modification@11"
         }
       ]
@@ -613,7 +675,7 @@
     "package": "npm run compile && node -e \"const v=require('./package.json').version; require('child_process').execSync('npx --yes @vscode/vsce package --no-dependencies --no-git-tag-version --out pyne-vscode-'+v+'.vsix',{stdio:'inherit'})\"",
     "lint": "eslint src",
     "test": "npx tsc -p . && npm run compile && node out/test/runTest.js",
-    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js",
+    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js",
     "edh": "npm run compile && node ./scripts/edh.mjs",
     "test:edh": "npm run compile:tests && node ./scripts/edh.mjs --test"
   },

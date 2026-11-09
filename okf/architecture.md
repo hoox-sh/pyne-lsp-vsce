@@ -16,9 +16,14 @@ The VS Code client for PYNE language support on `.pyne` / `.pine` files:
 highlighting, diagnostics, completion, hover, signature help, semantic tokens,
 formatting, and Convert to v6.
 
+- **Language id:** `pinescript` for `.pyne` / `.pine` / `.psc` (AXIS menus
+  match `editorLangId == pinescript`). Do not add a second id for the same
+  suffixes.
 - **Entry points:** the extension client only. It ships no language server; it
   launches the `pyne-lsp` installed in the user's Python environment from
   `hoox-sh/pyne`.
+- **Run vs chart:** `PYNE: Smoke /run (one bar)` is a one-bar `/run` smoke.
+  AXIS owns chart run. This extension does not paint a chart or ship a debugger.
 - **Run:** `npm ci && npm run package` builds a VSIX; install with
   `code --install-extension pyne-vscode-*.vsix`.
 - **Verify:** `./scripts/verify.sh` runs `npm run lint`, `npm run check`, and
