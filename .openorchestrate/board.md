@@ -3,8 +3,10 @@
 > One place for work. Statuses: Todo · Working · Blocked · Ready for Review · Done.
 > Nothing is done until this file says Done.
 
-| task | owner | status | priority | proof | blockedReason | source |
-| --- | --- | --- | --- | --- | --- | --- |
+| task                                                           | owner   | status           | priority | proof                                                                                                         | blockedReason | source                     |
+| -------------------------------------------------------------- | ------- | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------- | ------------- | -------------------------- |
+| Review pyne-lsp-vsce: fine-tune language surface for AXIS pack | oo-misc | Ready for Review | P1       | `./scripts/verify.sh` exit 0 (lint, check, okf, `npm run test`); artifact `docs/axis-pack-language-review.md` |               | AXIS pack language surface |
+| Raise OpenOrchestrate maturity to L7 (daily clock)             | oo-ops  | Ready for Review |          |                                                                                                               |               |                            |
 
 ## Rules
 
