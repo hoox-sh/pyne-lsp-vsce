@@ -24,8 +24,8 @@ import {
   hasDroppableComments,
   legendFromCapabilities,
   legendPreservesComments,
-  parseLegendProbe,
-  pythonForLaunch,
+  serverPreservesComments,
+  serverVersionAtLeast,
 } from '../format-guard';
 
 const OLD_LEGEND = [
@@ -61,13 +61,19 @@ describe('legendPreservesComments', () => {
   });
 });
 
-describe('installed legend probe', () => {
-  it('parses the module probe and finds the python next to pyne-lsp', () => {
-    assert.deepEqual(parseLegendProbe('comment\nseries\nsimple\n'), ['comment', 'series', 'simple']);
-    assert.equal(legendPreservesComments(parseLegendProbe('comment\nseries\nsimple\n')), true);
-    const py = pythonForLaunch('/tmp/pyne-pr-venv/bin/pyne-lsp');
-    assert.equal(py, '/tmp/pyne-pr-venv/bin/python');
-    assert.equal(pythonForLaunch('docker'), undefined);
+describe('serverPreservesComments', () => {
+  it('trusts an advertised series/simple tail or serverInfo 0.6.35+', () => {
+    assert.equal(serverVersionAtLeast('0.6.35', '0.6.35'), true);
+    assert.equal(serverVersionAtLeast('0.6.34', '0.6.35'), false);
+    assert.equal(serverVersionAtLeast('0.7.0', '0.6.35'), true);
+    assert.equal(serverVersionAtLeast('not-a-version', '0.6.35'), false);
+    assert.equal(
+      serverPreservesComments({ tokenTypes: [...OLD_LEGEND, 'series', 'simple'], version: '0.6.34' }),
+      true,
+    );
+    assert.equal(serverPreservesComments({ tokenTypes: OLD_LEGEND, version: '0.6.35' }), true);
+    assert.equal(serverPreservesComments({ tokenTypes: OLD_LEGEND, version: '0.6.34' }), false);
+    assert.equal(serverPreservesComments({}), false);
   });
 });
 

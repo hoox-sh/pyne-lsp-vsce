@@ -2,8 +2,8 @@
 
 ## 2026-11-10
 
-- Format gate follows the server legend (`series`/`simple` tail means comments
-  are kept). Semantic setting names S003 and S004.
+- Format gate uses the initialize legend (`series`/`simple` tail) or
+  `serverInfo.version` >= 0.6.35. 0.6.34 stays comment-free only.
 
 - Editor pass: severity remap, single diagnostic collection, link and lookahead
   positions, inlay toggle, grammar operator order, AXIS Day, status-bar

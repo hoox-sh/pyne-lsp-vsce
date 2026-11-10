@@ -29,7 +29,7 @@ Review of `hoox-sh.pyne` against `pyne-lsp` from `hoox-pyne` 0.6.34, then fixes 
 
 ## Follow-up (server PR hoox-sh/pyne#72, not merged)
 
-The extension treats a legend that **ends with** `series` then `simple` as the comment-preserving formatter. The package version stays `0.6.34` on both sides, so version is not the signal. pygls 2 rebuilds `initialize` capabilities from feature options and does not put that legend on the wire (the handlers are registered without options), so the client also imports `semantic_token_types()` from the same interpreter that launches `pyne-lsp`. Older legends keep the comment-free format guard. Theme keys `series` and `simple` match those names, in that order, and use different colors. `S003` and `S004` are named on the semantic-diagnostics setting. Range and on-type formatting still come from the server; it returns no edit when the line count would change.
+pyne-lsp 0.6.35 registers `textDocument/semanticTokens/full` and `/range` with a `SemanticTokensLegend`, so `initialize` advertises `semanticTokensProvider` (`full: true`, `range: true`, legend ending in `series`, `simple`) and `serverInfo.version` is `0.6.35`. The client turns on full formatting when that legend is advertised or the version is at least 0.6.35. hoox-pyne 0.6.34 has neither, so it stays on the comment-free guard. The interpreter probe is gone. Theme keys `series` and `simple` match the legend names and use different colors. `S003` and `S004` are named on the semantic-diagnostics setting. Range and on-type formatting still come from the server; it returns no edit when the line count would change.
 
 ## Not fixed here
 

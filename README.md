@@ -143,9 +143,15 @@ Captured in VS Code with the **AXIS Void** theme (the light shot uses **AXIS Day
 
 ### Syntax highlighting
 
-Namespaces, annotations, hex colors, history refs, and UDTs. With a server that emits `series` / `simple` tokens, `close` and `series float` use those theme colors.
+Namespaces, annotations, hex colors, history refs, and UDTs. On pyne-lsp 0.6.35 the server legend paints `series` and `close` in the theme's series color and `simple` in its simple color. Those two colors differ on every contributed theme.
 
-![Syntax highlighting in AXIS Void](docs/screenshots/highlighting.png)
+![Semantic colors, AXIS Void](docs/screenshots/semantic-void.png)
+
+![Semantic colors, Hoox Signal](docs/screenshots/semantic-signal.png)
+
+![Semantic colors, PYNE Volt](docs/screenshots/semantic-volt.png)
+
+![Semantic colors, AXIS Day](docs/screenshots/semantic-day.png)
 
 ### Diagnostics
 
@@ -173,7 +179,7 @@ Parameter hints while the argument list is open.
 
 ### Formatting
 
-`PYNE: Format Document` rewrites spacing through the language server. A server whose semantic-token legend ends with `series` then `simple` keeps line, trailing, and block comments. Older servers would drop those notes, so the client only asks them to format a comment-free buffer.
+`PYNE: Format Document` rewrites spacing through the language server. pyne-lsp 0.6.35 and later (or any server whose initialize legend ends with `series` then `simple`) keeps line, trailing, and block comments. Older servers would drop those notes, so the client only asks them to format a comment-free buffer.
 
 ![Before formatting](docs/screenshots/formatting-before.png)
 

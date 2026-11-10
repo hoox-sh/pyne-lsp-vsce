@@ -17,58 +17,46 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import * as path from 'path';
+/** First server release that keeps comments while formatting and advertises the legend. */
+export const COMMENT_PRESERVING_VERSION = '0.6.35';
 
-/** Python `-c` program that prints the server's semantic-token legend, one type per line. */
-export const LEGEND_PROBE_CODE =
-  'from pynescript.langserver.config import semantic_token_types\n' +
-  'print("\\n".join(semantic_token_types()))\n';
-
-/**
- * Interpreter that can import the same `pynescript` the launch command runs.
- *
- * pygls 2 rebuilds `initialize` capabilities from feature options and drops the
- * legend returned by the server's own initialize handler. The installed module
- * is the reliable copy of that legend.
- */
-export function pythonForLaunch(command: string): string | undefined {
-  const base = path.basename(command).toLowerCase();
-  if (
-    base === 'pyne-lsp' ||
-    base === 'pyne-lsp.exe' ||
-    base === 'pynescript-lsp' ||
-    base === 'pynescript-lsp.exe'
-  ) {
-    return path.join(path.dirname(command), process.platform === 'win32' ? 'python.exe' : 'python');
+/** True when `version` is at least `minimum` (`major.minor.patch`). Junk is not. */
+export function serverVersionAtLeast(version: string | undefined, minimum: string): boolean {
+  const parse = (value: string): [number, number, number] | undefined => {
+    const match = value.trim().match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!match) {
+      return undefined;
+    }
+    return [Number(match[1]), Number(match[2]), Number(match[3])];
+  };
+  const got = version ? parse(version) : undefined;
+  const need = parse(minimum);
+  if (!got || !need) {
+    return false;
   }
-  if (
-    base === 'python' ||
-    base === 'python.exe' ||
-    base === 'python3' ||
-    base === 'python3.exe' ||
-    base === 'py' ||
-    base === 'py.exe'
-  ) {
-    return command;
+  for (let i = 0; i < 3; i += 1) {
+    if (got[i] !== need[i]) {
+      return got[i] > need[i];
+    }
   }
-  return undefined;
-}
-
-/** Parse the probe's stdout into a token-type list. */
-export function parseLegendProbe(stdout: string): string[] | undefined {
-  const types = stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return types.length > 0 ? types : undefined;
+  return true;
 }
 
 /**
- * Comment-preserving format and the `series` / `simple` legend shipped
- * together. Released servers (hoox-pyne 0.6.34 and earlier) do not bump a
- * version we can branch on, and that PR does not either. The initialize
- * legend is the reliable signal: it ends with `series` then `simple`.
+ * Full formatting keeps comments when the initialize legend ends with
+ * `series` then `simple`, or when `serverInfo.version` is at least 0.6.35.
+ * hoox-pyne 0.6.34 advertises neither, so it stays on the comment-free guard.
  */
+export function serverPreservesComments(input: {
+  tokenTypes?: readonly string[] | undefined;
+  version?: string | undefined;
+}): boolean {
+  return (
+    legendPreservesComments(input.tokenTypes) ||
+    serverVersionAtLeast(input.version, COMMENT_PRESERVING_VERSION)
+  );
+}
+
 /** Pull `legend.tokenTypes` off an LSP initialize capabilities object. */
 export function legendFromCapabilities(capabilities: unknown): string[] | undefined {
   if (!capabilities || typeof capabilities !== 'object') {

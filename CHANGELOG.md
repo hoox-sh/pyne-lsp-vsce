@@ -6,7 +6,7 @@ All notable changes to pyne are documented here.
 
 ### Changed
 
-- **Formatting follows the server.** When the semantic-token legend ends with `series` then `simple`, full format is allowed on buffers that contain comments (that server keeps them). Older servers stay comment-free only, so a pretty-print cannot delete `//` notes.
+- **Formatting follows the advertised server.** Full format (comments kept) turns on when `initialize` reports a legend ending in `series`, `simple`, or `serverInfo.version` is at least 0.6.35. hoox-pyne 0.6.34 stays comment-free only.
 - **Semantic diagnostics** document `S003` (value too weak for its declared type) and `S004` (bare `na` with no contextual type). Remap both with a severity prefix of `S`.
 
 ### Fixed
