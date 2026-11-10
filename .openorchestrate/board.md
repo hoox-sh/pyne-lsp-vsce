@@ -3,10 +3,10 @@
 > One place for work. Statuses: Todo · Working · Blocked · Ready for Review · Done.
 > Nothing is done until this file says Done.
 
-| task                                                           | owner   | status           | priority | proof                                                                                                         | blockedReason | source                     |
-| -------------------------------------------------------------- | ------- | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------- | ------------- | -------------------------- |
-| Review pyne-lsp-vsce: fine-tune language surface for AXIS pack | oo-misc | Ready for Review | P1       | `./scripts/verify.sh` exit 0 (lint, check, okf, `npm run test`); artifact `docs/axis-pack-language-review.md` |               | AXIS pack language surface |
-| Raise OpenOrchestrate maturity to L7 (daily clock)             | oo-ops  | Ready for Review |          |                                                                                                               |               |                            |
+| task                                                           | owner   | status | priority | proof                                                                                                | blockedReason | source                     | updated    | Id                                        |
+| -------------------------------------------------------------- | ------- | ------ | -------- | ---------------------------------------------------------------------------------------------------- | ------------- | -------------------------- | ---------- | ----------------------------------------- |
+| Review pyne-lsp-vsce: fine-tune language surface for AXIS pack | oo-misc | Done   | P1       | checker PASS: `./scripts/verify.sh` 4 passed 1 skipped; artifact `docs/axis-pack-language-review.md` |               | AXIS pack language surface | 2026-11-09 | review-pyne-lsp-vsce-fine-tune-l-ce599ae0 |
+| Raise OpenOrchestrate maturity to L7 (daily clock)             | oo-ops  | Done   |          | checker 5764f741                                                                                     |               |                            | 2026-11-09 | raise-openorchestrate-maturity-t-40efcee2 |
 
 ## Rules
 
