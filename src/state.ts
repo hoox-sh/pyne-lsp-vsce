@@ -38,4 +38,12 @@ export const state = {
   extensionPath: undefined as string | undefined,
   /** SecretStorage for the Pro API key (never settings.json). */
   secrets: undefined as SecretStore | undefined,
+  /**
+   * True when initialize advertises a legend ending in `series`, `simple`,
+   * or `serverInfo.version` is at least 0.6.35. Those servers keep comments
+   * while formatting.
+   */
+  preservesComments: false,
+  /** Log the comment-free format skip once per server start. */
+  formatSkipLogged: false,
 };

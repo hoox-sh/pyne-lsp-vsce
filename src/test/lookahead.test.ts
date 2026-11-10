@@ -29,4 +29,17 @@ describe('scanPineLookahead', () => {
     const cold = scanPineLookahead('// request.security(syminfo.tickerid, "D", close)\nplot(close)\n');
     assert.equal(cold.tainted, false);
   });
+
+  it('keeps the column after a line comment above the hit', () => {
+    const report = scanPineLookahead('// note\nrequest.security(syminfo.tickerid, "D", close)\n');
+    assert.equal(report.hits.length, 1);
+    assert.equal(report.hits[0].line, 1);
+    assert.equal(report.hits[0].col, 0);
+    assert.equal(report.hits[0].kind, 'security');
+  });
+
+  it('does not flag request.security inside a string', () => {
+    const report = scanPineLookahead('x = "request.security("\nplot(close)\n');
+    assert.equal(report.tainted, false);
+  });
 });

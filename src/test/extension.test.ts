@@ -15,6 +15,7 @@ const EXPECTED_COMMANDS = [
   'pynescript.formatDocument',
   'pynescript.showLspOutput',
   'pynescript.showLspCommand',
+  'pynescript.showStatus',
   'pynescript.convertToV6',
   'pynescript.diagnosticsToggle',
   'pynescript.completionToggle',

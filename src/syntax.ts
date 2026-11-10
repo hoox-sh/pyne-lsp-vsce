@@ -23,6 +23,7 @@ import { ConfigurationTarget, workspace } from 'vscode';
 import { cfg } from './config';
 import { log } from './log';
 import { state } from './state';
+import { resolveSyntaxInjection } from './syntax-palette';
 
 /** PYNE product themes (contributed color themes under `themes/`). */
 const PYNE_THEMES: Record<string, { label: string; file: string; description: string }> = {
@@ -30,15 +31,6 @@ const PYNE_THEMES: Record<string, { label: string; file: string; description: st
   signal: { label: 'Hoox Signal', file: 'hoox-signal', description: 'Signal-orange accent · near-black surfaces' },
   volt: { label: 'PYNE Volt', file: 'pyne-volt', description: 'Lime accent · neutral near-black surfaces' },
 };
-
-/** Legacy ids kept working for users who saved them before the rename. */
-const THEME_ALIASES: Record<string, string> = { orange: 'signal' };
-
-function normalizeThemeId(value: string | undefined, fallback: string): string {
-  const raw = (value || fallback).toLowerCase();
-  const id = THEME_ALIASES[raw] ?? raw;
-  return id === 'none' || id in PYNE_THEMES ? id : fallback;
-}
 
 /** Quick-pick items: None first, then the three product themes. */
 export function themeChoices() {
@@ -54,11 +46,7 @@ export function themeChoices() {
 
 // Workbench theme switching is intentionally not automatic. The extension
 // never writes workbench.colorTheme; users pick AXIS Void / Hoox Signal /
-// PYNE Volt from the VS Code Color Theme picker.
-
-function currentSyntaxId() {
-  return normalizeThemeId(cfg<string>('syntaxHighlighting'), 'void');
-}
+// PYNE Volt / AXIS Day from the VS Code Color Theme picker.
 
 /** Read the bundled `themes/<file>-color-theme.json`. */
 function loadThemeJson(
@@ -123,7 +111,8 @@ function pineSemanticRules(rules: Record<string, unknown>) {
  * colors apply again.
  */
 export async function applyPyneSyntax() {
-  const id = currentSyntaxId();
+  const activeTheme = workspace.getConfiguration('workbench').get<string>('colorTheme');
+  const id = resolveSyntaxInjection(cfg<string>('syntaxHighlighting'), activeTheme);
   const editor = workspace.getConfiguration('editor');
 
   const tokens = editor.get<Record<string, unknown>>('tokenColorCustomizations') ?? {};
@@ -163,17 +152,18 @@ export async function applyPyneSyntax() {
     };
   }
 
+  const tokenValue = Object.keys(nextTokens).length ? nextTokens : undefined;
+  const semanticValue = Object.keys(nextSemantic).length ? nextSemantic : undefined;
+  if (
+    JSON.stringify(tokens) === JSON.stringify(tokenValue ?? {}) &&
+    JSON.stringify(semantic) === JSON.stringify(semanticValue ?? {})
+  ) {
+    return;
+  }
+
   try {
-    await editor.update(
-      'tokenColorCustomizations',
-      Object.keys(nextTokens).length ? nextTokens : undefined,
-      ConfigurationTarget.Global,
-    );
-    await editor.update(
-      'semanticTokenColorCustomizations',
-      Object.keys(nextSemantic).length ? nextSemantic : undefined,
-      ConfigurationTarget.Global,
-    );
+    await editor.update('tokenColorCustomizations', tokenValue, ConfigurationTarget.Global);
+    await editor.update('semanticTokenColorCustomizations', semanticValue, ConfigurationTarget.Global);
     log(
       id === 'none'
         ? 'Cleared Pine token rules (using the active theme).'

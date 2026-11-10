@@ -1,0 +1,9 @@
+//@version=6
+indicator("Diagnostics", overlay=false)
+
+// Static lookahead radar (client) plus a real parse error (server).
+htf = request.security(syminfo.tickerid, "D", close, lookahead=barmerge.lookahead_on)
+plot(htf, "HTF", color=#E2726B)
+
+// The next call is intentionally unclosed.
+plot(close

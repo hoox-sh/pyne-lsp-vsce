@@ -24,6 +24,8 @@ formatting, and Convert to v6.
   `hoox-sh/pyne`.
 - **Run vs chart:** `PYNE: Smoke /run (one bar)` is a one-bar `/run` smoke.
   AXIS owns chart run. This extension does not paint a chart or ship a debugger.
+- **Themes:** AXIS Void, Hoox Signal, and PYNE Volt are dark. AXIS Day is light.
+  The status item runs **PYNE: Language Server Status**.
 - **Run:** `npm ci && npm run package` builds a VSIX; install with
   `code --install-extension pyne-vscode-*.vsix`.
 - **Verify:** `./scripts/verify.sh` runs `npm run lint`, `npm run check`, and

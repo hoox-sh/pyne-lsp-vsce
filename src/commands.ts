@@ -23,6 +23,7 @@ export const COMMANDS = {
   formatDocument: 'pynescript.formatDocument',
   showLspOutput: 'pynescript.showLspOutput',
   showLspCommand: 'pynescript.showLspCommand',
+  showStatus: 'pynescript.showStatus',
   convertToV6: 'pynescript.convertToV6',
   diagnosticsToggle: 'pynescript.diagnosticsToggle',
   completionToggle: 'pynescript.completionToggle',

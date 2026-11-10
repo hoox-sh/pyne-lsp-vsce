@@ -26,15 +26,15 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 | Functionality | Hosted Pro (key) | Self-hosted local | Self-hosted remote | Self-hosted edge | No backend |
 | --- | --- | --- | --- | --- | --- |
 | Pine grammar highlighting (`.pyne` / `.pine` / `.psc` → language id `pinescript`) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Color themes (`pyne-volt`, `hoox-signal`, `axis-void`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Color themes (`pyne-volt`, `hoox-signal`, `axis-void`, light `axis-day`) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **PYNE: Select Syntax Highlighting** (`none` / `void` / `signal` / `volt`) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Snippets (declaration + builtin) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Diagnostics — parse + lint (pull + push) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Diagnostics — style / semantic (opt-in) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Completion (+ resolve, snippets, user symbols) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Hover cards (AXIS Markdown card + builtin/user docs) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Semantic tokens (`series` / `simple` types + theme colors) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Format Document (local LS; `pynescript.formatting.enabled`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Semantic tokens (`series` / `simple` legend tail + theme colors) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Format Document (comments kept on pyne-lsp ≥ 0.6.35 or a `series`/`simple` legend; otherwise comment-free only) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Static lookahead grep (`pyne.lookahead.static`; not live-taint) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Signature help while typing | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Definition / references / rename (+ prepare) | ✅ | ✅ | ✅ | ✅ | ✅ |

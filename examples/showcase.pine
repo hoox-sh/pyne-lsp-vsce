@@ -1,0 +1,30 @@
+//@version=6
+//@description "HOOX PYNE showcase — highlighting, hover, completion, and format"
+indicator("HOOX Showcase", shorttitle="HOOX", overlay=false)
+
+// Docs: https://hoox.sh/pyne
+length = input.int(14, "RSI Length", minval=2, maxval=100)
+src = close
+simple float floor = 30.0
+series float drift = close - open
+rsi = ta.rsi(src, length)
+band = color.new(#5B6CFF, 20)
+
+type BarNote
+    float value
+    string label
+
+note = BarNote.new(rsi, "rsi")
+prev = close[1]
+up = rsi > 50 and close >= prev
+shift = 1 << 2
+
+method bias(BarNote this) =>
+    this.value >= 50 ? "bid" : "offer"
+
+if rsi < 30
+    label.new(bar_index, rsi, "oversold", color=color.green, style=label.style_label_up)
+
+plot(rsi, "RSI", color=band, linewidth=2)
+hline(30, "Oversold", color=color.green)
+bgcolor(up ? color.new(#B7EF09, 88) : na)

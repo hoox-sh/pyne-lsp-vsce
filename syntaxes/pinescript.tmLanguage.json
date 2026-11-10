@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage-schema.json",
   "name": "PYNE",
   "scopeName": "source.pinescript",
-  "fileTypes": ["pyne", "pine", "pinev5", "pinev6", "pinescript"],
+  "fileTypes": ["pyne", "pine", "pinev5", "pinev6", "pinescript", "psc"],
   "patterns": [
     { "include": "#comments" },
     { "include": "#annotations" },
@@ -38,10 +38,6 @@
         {
           "name": "comment.line.double-slash.pinescript",
           "match": "//(?!\\s*@).*$"
-        },
-        {
-          "name": "comment.line.number-sign.pinescript",
-          "match": "#(?![0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{2})?)?\\b).*$"
         }
       ]
     },
@@ -232,7 +228,7 @@
         },
         {
           "name": "storage.modifier.pinescript",
-          "match": "\\b(var|varip|const|method|export)\\b"
+          "match": "\\b(var|varip|method|export)\\b"
         },
         {
           "name": "keyword.other.declaration.pinescript",
@@ -268,7 +264,7 @@
       "patterns": [
         {
           "name": "meta.namespace.member.pinescript",
-          "match": "\\b(ta|math|str|log|array|matrix|map|request|ticker|timeframe|session|syminfo|barstate|chart|runtime|color|line|linefill|label|box|table|polyline|plot|plotshape|plotchar|plotcandle|plotbar|hline|fill|bgcolor|barcolor|alert|alertcondition|strategy|input|shape|location|size|display|format|xloc|yloc|extend|barmerge|currency|position|adjustment|scale|text|timestamp|year|month|weekofyear|dayofmonth|dayofweek|hour|minute|second)\\s*(\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(ta|math|str|log|array|matrix|map|request|ticker|timeframe|session|syminfo|barstate|chart|runtime|font|earnings|dividends|splits|color|line|linefill|label|box|table|polyline|plot|plotshape|plotchar|plotcandle|plotbar|hline|fill|bgcolor|barcolor|alert|alertcondition|strategy|input|shape|location|size|display|format|xloc|yloc|extend|barmerge|currency|position|adjustment|scale|text|timestamp|year|month|weekofyear|dayofmonth|dayofweek|hour|minute|second)\\s*(\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "support.module.pinescript" },
             "2": { "name": "punctuation.accessor.dot.pinescript" },
@@ -277,7 +273,7 @@
         },
         {
           "name": "support.module.pinescript",
-          "match": "\\b(ta|math|str|log|array|matrix|map|request|ticker|timeframe|session|syminfo|barstate|chart|runtime|color|strategy|input|line|linefill|label|box|table|polyline|shape|location|size|display|format|xloc|yloc|extend|barmerge|currency|position)\\b(?=\\s*\\.)"
+          "match": "\\b(ta|math|str|log|array|matrix|map|request|ticker|timeframe|session|syminfo|barstate|chart|runtime|font|earnings|dividends|splits|color|strategy|input|line|linefill|label|box|table|polyline|shape|location|size|display|format|xloc|yloc|extend|barmerge|currency|position)\\b(?=\\s*\\.)"
         }
       ]
     },
@@ -293,7 +289,7 @@
         },
         {
           "name": "variable.language.series.pinescript",
-          "match": "\\b(open|high|low|close|volume|time|time_close|hl2|hlc3|ohlc4|bar_index|last_bar_index|timenow)\\b"
+          "match": "\\b(open|high|low|close|volume|time|time_close|hl2|hlc3|ohlc4|bar_index|last_bar_index|timenow|year|month|weekofyear|dayofmonth|dayofweek|hour|minute|second)\\b"
         },
         {
           "name": "variable.language.barstate.pinescript",
@@ -309,7 +305,7 @@
         },
         {
           "name": "support.function.builtin.pinescript",
-          "match": "\\b(nz|na|fix|max|min|abs|pow|sqrt|log|log10|exp|sin|cos|tan|asin|acos|atan|avg|sum|cum|change|mom|roc|stdev|variance|correlation|percentile_nearest_rank|percentile_linear_interpolation|percentrank|rising|falling|cross|crossover|crossunder|highest|lowest|highestbars|lowestbars|barssince|valuewhen|fixnan|timestamp|year|month|weekofyear|dayofmonth|dayofweek|hour|minute|second|time|time_close)\\b"
+          "match": "\\b(nz|max|min|abs|pow|sqrt|log|log10|exp|sin|cos|tan|asin|acos|atan|avg|sum|cum|change|mom|roc|stdev|variance|correlation|percentile_nearest_rank|percentile_linear_interpolation|percentrank|rising|falling|cross|crossover|crossunder|highest|lowest|highestbars|lowestbars|barssince|valuewhen|fixnan|timestamp)\\b"
         }
       ]
     },
@@ -336,8 +332,8 @@
           "match": ":="
         },
         {
-          "name": "keyword.operator.assignment.pinescript",
-          "match": "="
+          "name": "keyword.operator.comparison.pinescript",
+          "match": "==|!=|<=|>="
         },
         {
           "name": "keyword.operator.bitwise.pinescript",
@@ -345,7 +341,11 @@
         },
         {
           "name": "keyword.operator.comparison.pinescript",
-          "match": "==|!=|<=|>=|<|>"
+          "match": "<|>"
+        },
+        {
+          "name": "keyword.operator.assignment.pinescript",
+          "match": "(?<![=!<>:])=(?!=)"
         },
         {
           "name": "keyword.operator.ternary.pinescript",

@@ -25,10 +25,17 @@ import {
   ServerOptions,
   State,
   TransportKind,
+  vsdiag,
 } from 'vscode-languageclient/node';
 import { COMMANDS } from './commands';
 import { cfg, expandWorkspaceVars, serverSettings, settingOn } from './config';
-import { commandOnPath, handleMissingServer, pythonCanImportLangserver } from './install';
+import { filterDiagnostics } from './diagnostics';
+import {
+  allowDocumentFormat,
+  legendFromCapabilities,
+  serverPreservesComments,
+} from './format-guard';
+import { commandOnPath, handleMissingServer, installLanguageServer, pythonCanImportLangserver } from './install';
 import { log, setStatus } from './log';
 import { state } from './state';
 
@@ -102,6 +109,39 @@ export function resolveLspLaunch(): {
   };
 }
 
+function documentFormatAllowed(source: string): boolean {
+  if (cfg<boolean>('formatting.enabled') === false) {
+    return false;
+  }
+  if (allowDocumentFormat(source, state.preservesComments)) {
+    return true;
+  }
+  if (!state.formatSkipLogged) {
+    state.formatSkipLogged = true;
+    log(
+      'Format skipped: this pyne-lsp drops prose comments. ' +
+        'It will format a comment-free buffer. pyne-lsp 0.6.35 and later keep comments.',
+    );
+  }
+  return false;
+}
+
+function diagnosticFilter(): { enabled: boolean; severity?: Record<string, string> } {
+  return {
+    enabled: cfg<boolean>('diagnostics.enabled') !== false,
+    severity: cfg<Record<string, string>>('diagnostics.severity'),
+  };
+}
+
+function mapWorkspaceDiagnosticReport<T extends { kind: string; items?: Parameters<typeof filterDiagnostics>[0] }>(
+  item: T,
+): T {
+  if (item.kind !== vsdiag.DocumentDiagnosticReportKind.full || !item.items) {
+    return item;
+  }
+  return { ...item, items: filterDiagnostics(item.items, diagnosticFilter()) };
+}
+
 export function buildServerOptions(): ServerOptions {
   const launch = resolveLspLaunch();
   // Executable form (stdio). Do not pass TransportKind as a confusing dual field
@@ -139,37 +179,44 @@ export function buildClientOptions(): LanguageClientOptions {
     initializationOptions: serverSettings(),
     middleware: {
       handleDiagnostics(uri, diagnostics, next) {
-        if (cfg<boolean>('diagnostics.enabled') === false) {
+        // pyne-lsp publishes diagnostics and also serves pull
+        // (textDocument/diagnostic). The client keeps a collection for each.
+        // Showing both doubles every squiggle. When pull is advertised, the
+        // pull collection is the one we filter; the push copy is dropped.
+        const pulls = !!state.client?.initializeResult?.capabilities?.diagnosticProvider;
+        if (pulls) {
           next(uri, []);
           return;
         }
-        const overrides = cfg<Record<string, string>>('diagnostics.severity') || {};
-        const keys = Object.keys(overrides);
-        if (keys.length > 0) {
-          const mapped = diagnostics.map((d) => {
-            const code = typeof d.code === 'string' ? d.code : String(d.code ?? '');
-            let override: string | undefined;
-            for (const prefix of keys) {
-              if (code.startsWith(prefix)) {
-                override = overrides[prefix];
-                break;
-              }
-            }
-            if (!override) {
-              return d;
-            }
-            const sev = {
-              Error: 1,
-              Warning: 2,
-              Information: 3,
-              Hint: 4,
-            }[override];
-            return sev !== undefined ? { ...d, severity: sev } : d;
-          });
-          next(uri, mapped);
-          return;
+        next(uri, filterDiagnostics(diagnostics, diagnosticFilter()));
+      },
+      provideDiagnostics(document, previousResultId, token, next) {
+        if (cfg<boolean>('diagnostics.enabled') === false) {
+          return { kind: vsdiag.DocumentDiagnosticReportKind.full, items: [] };
         }
-        next(uri, diagnostics);
+        return Promise.resolve(next(document, previousResultId, token)).then((report) => {
+          if (!report || report.kind !== vsdiag.DocumentDiagnosticReportKind.full) {
+            return report;
+          }
+          return { ...report, items: filterDiagnostics(report.items, diagnosticFilter()) };
+        });
+      },
+      provideWorkspaceDiagnostics(resultIds, token, resultReporter, next) {
+        const reportChunk = (
+          chunk: vsdiag.WorkspaceDiagnosticReportPartialResult | null,
+        ): void => {
+          if (!chunk) {
+            resultReporter(chunk);
+            return;
+          }
+          resultReporter({ items: chunk.items.map(mapWorkspaceDiagnosticReport) });
+        };
+        return Promise.resolve(next(resultIds, token, reportChunk)).then((report) => {
+          if (!report) {
+            return report;
+          }
+          return { ...report, items: report.items.map(mapWorkspaceDiagnosticReport) };
+        });
       },
       // --- Client-side feature gates ---------------------------------------
       // Read live settings so toggles take effect without a server restart.
@@ -224,16 +271,24 @@ export function buildClientOptions(): LanguageClientOptions {
         return next(document, range, token);
       },
       provideDocumentFormattingEdits(document, options, token, next) {
-        if (cfg<boolean>('formatting.enabled') === false) {
+        if (!documentFormatAllowed(document.getText())) {
           return [];
         }
         return next(document, options, token);
       },
       provideDocumentRangeFormattingEdits(document, range, options, token, next) {
-        if (cfg<boolean>('formatting.enabled') === false) {
+        // Old servers unparse the whole buffer, then clip. A comment anywhere
+        // is enough to refuse, same as a full-document request.
+        if (!documentFormatAllowed(document.getText())) {
           return [];
         }
         return next(document, range, options, token);
+      },
+      provideOnTypeFormattingEdits(document, position, ch, options, token, next) {
+        if (!documentFormatAllowed(document.getText())) {
+          return [];
+        }
+        return next(document, position, ch, options, token);
       },
       provideLinkedEditingRange(document, position, token, next) {
         if (!settingOn('linkedEditing.enabled')) {
@@ -260,6 +315,8 @@ export async function stopClient(): Promise<void> {
   if (!state.client) return;
   const c = state.client;
   state.client = undefined;
+  state.preservesComments = false;
+  state.formatSkipLogged = false;
   try {
     if (c.state !== State.Stopped) {
       await c.stop();
@@ -323,17 +380,44 @@ export async function startClient(): Promise<void> {
 
   try {
     await state.client.start();
+    const tokenTypes = legendFromCapabilities(state.client.initializeResult?.capabilities);
+    const version = state.client.initializeResult?.serverInfo?.version;
+    state.preservesComments = serverPreservesComments({ tokenTypes, version });
     setStatus('$(check) PYNE LSP', `Running: ${launch.label}`);
-    log('Language server started.');
+    const tail =
+      tokenTypes &&
+      tokenTypes.length >= 2 &&
+      tokenTypes[tokenTypes.length - 2] === 'series' &&
+      tokenTypes[tokenTypes.length - 1] === 'simple';
+    const why = tail
+      ? 'advertised legend ends with series, simple'
+      : `serverInfo.version ${version ?? 'unknown'}`;
+    log(
+      `Language server started${version ? ` (${version})` : ''}. ` +
+        (state.preservesComments
+          ? `${why} — full format keeps comments.`
+          : 'No series/simple legend and version is below 0.6.35 — format stays comment-free only.'),
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     setStatus('$(error) PYNE LSP', msg, true);
     log(`Start failed: ${msg}`);
-    void window.showErrorMessage(
-      `PYNE language server failed to start (${launch.label}). ` +
-        `Install with: pip install "hoox-pyne[lsp]" then set pynescript.lsp.python if needed. ` +
-        `Error: ${msg}`,
-    );
+    const docker = launch.command.toLowerCase() === 'docker';
+    const hint = docker
+      ? 'Check that Docker is running, or set pynescript.lsp.command to auto.'
+      : 'Run PYNE: Install Language Server, or pip install "hoox-pyne[lsp]".';
+    const actions = docker
+      ? (['Show Output'] as const)
+      : (['Install Language Server', 'Show Output'] as const);
+    void window
+      .showErrorMessage(`PYNE language server failed to start (${launch.label}). ${hint} Error: ${msg}`, ...actions)
+      .then((choice) => {
+        if (choice === 'Install Language Server') {
+          void installLanguageServer({ restart: true });
+        } else if (choice === 'Show Output') {
+          state.output?.show(true);
+        }
+      });
     await stopClient();
     throw err;
   }

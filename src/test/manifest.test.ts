@@ -42,6 +42,7 @@ const EXPECTED_COMMANDS = [
   'pynescript.formatDocument',
   'pynescript.showLspOutput',
   'pynescript.showLspCommand',
+  'pynescript.showStatus',
   'pynescript.convertToV6',
   'pynescript.diagnosticsToggle',
   'pynescript.completionToggle',
@@ -187,6 +188,11 @@ describe('snippets', () => {
     assert.ok(prefixes.includes('indicator'), 'missing indicator snippet');
     assert.ok(prefixes.includes('strategy'), 'missing strategy snippet');
     assert.ok(prefixes.includes('library'), 'missing library snippet');
+    const body = JSON.stringify(snippets);
+    assert.ok(body.includes('minval='), 'input snippets must use minval=');
+    assert.ok(!body.includes('min=${'), 'input snippets must not use min=');
+    assert.ok(body.includes('label.style_'), 'label.new uses label.style_* constants');
+    assert.ok(body.includes('lookahead_off'), 'request.security snippet should default lookahead off');
   });
 });
 
@@ -224,6 +230,9 @@ describe('language', () => {
       {},
       ...configuration.map((group: { properties?: Record<string, { default?: unknown }> }) => group.properties ?? {}),
     ) as Record<string, { default?: unknown }>;
+    const semantic = props['pynescript.diagnostics.semantic'] as { description?: string } | undefined;
+    assert.match(semantic?.description ?? '', /S003/);
+    assert.match(semantic?.description ?? '', /S004/);
     assert.equal(props['pynescript.inlayHints.parameters']?.default, false);
     const pine = pkg.contributes.configurationDefaults['[pinescript]'] as Record<string, unknown>;
     assert.equal(pine['editor.inlayHints.enabled'], 'off');
@@ -242,8 +251,7 @@ describe('language', () => {
   it('contributes series/simple semantic token types and Format Document', () => {
     const types = (pkg.contributes.semanticTokenTypes ?? []) as Array<{ id: string }>;
     const ids = types.map((t) => t.id);
-    assert.ok(ids.includes('series'), 'semanticTokenTypes series');
-    assert.ok(ids.includes('simple'), 'semanticTokenTypes simple');
+    assert.deepEqual(ids, ['series', 'simple'], 'legend tail the server appends');
     const commands = pkg.contributes.commands as CommandContribution[];
     const fmt = commands.find((c) => c.command === 'pynescript.formatDocument');
     assert.ok(fmt);
@@ -348,9 +356,29 @@ describe('grammar and themes', () => {
     assert.ok(fs.existsSync(path.join(EXT_ROOT, grammar.path)), grammar.path);
   });
 
-  it('ships three themes on disk', () => {
-    const themes = pkg.contributes.themes as Array<{ path: string; label: string }>;
-    assert.equal(themes.length, 3, `expected 3 themes, got ${themes.length}`);
+  it('matches comparison and shifts before a bare equals sign', () => {
+    const grammar = pkg.contributes.grammars[0] as { path: string };
+    const json = JSON.parse(fs.readFileSync(path.join(EXT_ROOT, grammar.path), 'utf8')) as {
+      fileTypes?: string[];
+      repository: { operators: { patterns: Array<{ match?: string }> }; comments: { patterns: Array<{ match?: string }> } };
+    };
+    const matches = json.repository.operators.patterns.map((pattern) => pattern.match ?? '');
+    const eq = matches.findIndex((match) => match.includes('(?!='));
+    const cmp = matches.findIndex((match) => match.includes('=='));
+    const shift = matches.findIndex((match) => match.includes('<<'));
+    assert.ok(cmp >= 0 && eq > cmp, '== must be tokenized before =');
+    assert.ok(shift >= 0 && shift < matches.findIndex((match) => match === '<|>'), '<< must be tokenized before <');
+    assert.ok(json.fileTypes?.includes('psc'), 'grammar fileTypes include psc');
+    const comments = JSON.stringify(json.repository.comments);
+    assert.ok(!comments.includes('number-sign'), 'Pine has no # line comments');
+  });
+
+  it('ships four themes on disk, including a light variant', () => {
+    const themes = pkg.contributes.themes as Array<{ path: string; label: string; uiTheme?: string }>;
+    assert.equal(themes.length, 4, `expected 4 themes, got ${themes.length}`);
+    const day = themes.find((theme) => theme.label === 'AXIS Day');
+    assert.ok(day, 'AXIS Day light theme');
+    assert.equal(day.uiTheme, 'vs');
     for (const theme of themes) {
       assert.ok(fs.existsSync(path.join(EXT_ROOT, theme.path)), theme.path);
     }
@@ -400,6 +428,16 @@ describe('grammar and themes', () => {
       for (const key of required) {
         assert.ok(colors[key], `${theme.label} missing ${key}`);
       }
+      assert.notEqual(
+        colors['editorWarning.foreground']?.toUpperCase(),
+        colors['editor.foreground']?.toUpperCase(),
+        `${theme.label} warning color matches editor foreground`,
+      );
+      assert.notEqual(
+        colors['editorWarning.foreground']?.toUpperCase(),
+        '#EEEEEE',
+        `${theme.label} warning color is plain white`,
+      );
     }
   });
 
@@ -412,6 +450,7 @@ describe('grammar and themes', () => {
       const sem = json.semanticTokenColors ?? {};
       assert.ok(sem.series, `${theme.label} missing semanticTokenColors.series`);
       assert.ok(sem.simple, `${theme.label} missing semanticTokenColors.simple`);
+      assert.notEqual(sem.series, sem.simple, `${theme.label} series and simple share a color`);
     }
   });
 });
