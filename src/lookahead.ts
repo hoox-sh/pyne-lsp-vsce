@@ -39,9 +39,25 @@ export type LookaheadReport = {
 
 const LINE_COMMENT = /\/\/.*$/gm;
 const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
+const STRING_LITERAL = /"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'/g;
 
-function stripComments(source: string): string {
-  return source.replace(BLOCK_COMMENT, (m) => m.replace(/[^\n]/g, ' ')).replace(LINE_COMMENT, '');
+/** Replace matched text with spaces, keeping newlines so later indexes still align. */
+function maskKeepNewlines(text: string): string {
+  return text.replace(/[^\n]/g, ' ');
+}
+
+/**
+ * Hide comments and strings without changing length.
+ *
+ * Deleting a `//` comment shifts every later index, so a hit after a comment
+ * was underlined on the wrong line. Masking keeps `source` and the scanned
+ * copy the same length.
+ */
+function maskNonCode(source: string): string {
+  return source
+    .replace(STRING_LITERAL, maskKeepNewlines)
+    .replace(BLOCK_COMMENT, maskKeepNewlines)
+    .replace(LINE_COMMENT, maskKeepNewlines);
 }
 
 function pushHits(
@@ -71,7 +87,7 @@ export function scanPineLookahead(source: unknown): LookaheadReport {
   if (!raw.trim()) {
     return { static: true, tainted: false, hits, note: LOOKAHEAD_STATIC_NOTE };
   }
-  const stripped = stripComments(raw);
+  const stripped = maskNonCode(raw);
   pushHits(hits, raw, stripped, /\bbarmerge\.lookahead_on\b|\blookahead_on\b/, 'lookahead_on');
   pushHits(hits, raw, stripped, /\brequest\.security\s*\(/, 'security');
   pushHits(hits, raw, stripped, /\bcalc_on_every_tick\s*=\s*true\b/, 'calc_on_every_tick');

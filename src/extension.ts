@@ -63,6 +63,7 @@ import { convertSuccessMessage, convertViaPython, type ConvertToV6Payload } from
 import { LOOKAHEAD_STATIC_NOTE, scanPineLookahead } from './lookahead';
 import { installBackend, installLanguageServer, setLanguageServerRestarter } from './install';
 import { isPineDocument, PINE_LANGUAGE_ID, shouldNormalizeToPinescript } from './language';
+import { findUrlOnLine } from './links';
 import { log, setStatus } from './log';
 import {
   getClient,
@@ -104,6 +105,43 @@ function registerCommands(context: ExtensionContext): void {
         return;
       }
       state.output.show(true);
+    }),
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand(COMMANDS.showStatus, async () => {
+      if (isClientRunning()) {
+        state.output?.show(true);
+        return;
+      }
+      const pick = await window.showQuickPick(
+        [
+          {
+            id: 'install',
+            label: '$(cloud-download) Install Language Server',
+            description: 'pip install "hoox-pyne[lsp]"',
+          },
+          { id: 'output', label: '$(output) Show Language Server Output' },
+          { id: 'restart', label: '$(debug-restart) Restart Language Server' },
+          { id: 'launch', label: '$(terminal) Show Resolved Launch Command' },
+        ],
+        {
+          title: 'PYNE',
+          placeHolder: 'PYNE language server is not running',
+        },
+      );
+      if (!pick) {
+        return;
+      }
+      if (pick.id === 'install') {
+        await installLanguageServer({ restart: true });
+      } else if (pick.id === 'output') {
+        state.output?.show(true);
+      } else if (pick.id === 'restart') {
+        await commands.executeCommand(COMMANDS.restartServer);
+      } else if (pick.id === 'launch') {
+        await commands.executeCommand(COMMANDS.showLspCommand);
+      }
     }),
   );
 
@@ -300,7 +338,9 @@ function registerCommands(context: ExtensionContext): void {
 
   context.subscriptions.push(
     commands.registerCommand(COMMANDS.inlayHintsToggle, async () => {
-      await togglePinescriptEditor('inlayHints.enabled', 'on', 'off', 'inlay hints');
+      // The server only emits parameter names when inlayHints.parameters is
+      // true. The configuration listener turns the editor decoration on with it.
+      await togglePyneBool('inlayHints.parameters', 'parameter inlay hints');
     }),
   );
 
@@ -386,27 +426,17 @@ function registerCommands(context: ExtensionContext): void {
       if (!editor || !isPineDocument(editor.document)) {
         return;
       }
-      const { document } = editor;
-      const offset = document.offsetAt(editor.selection.active);
-      const line = document.lineAt(editor.selection.active.line);
-      const text = line.text;
-      // Scan the current line for http(s) URLs and open the one covering offset.
-      const urlRe = /https?:\/\/[^\s<>\"'`*]+/g;
-      let match: RegExpExecArray | null;
-      while ((match = urlRe.exec(text)) !== null) {
-        const url = match[0].replace(/[.,;:!?]+$/, '');
-        const start = line.range.start.character + match.index;
-        const end = start + url.length;
-        if (offset >= start && offset <= end) {
-          try {
-            await env.openExternal(Uri.parse(url));
-          } catch {
-            void window.showWarningMessage(`Could not open link: ${url}`);
-          }
-          return;
-        }
+      const line = editor.document.lineAt(editor.selection.active.line);
+      const url = findUrlOnLine(line.text, editor.selection.active.character);
+      if (!url) {
+        void window.showInformationMessage('No link under the cursor.');
+        return;
       }
-      void window.showInformationMessage('No link under the cursor.');
+      try {
+        await env.openExternal(Uri.parse(url));
+      } catch {
+        void window.showWarningMessage(`Could not open link: ${url}`);
+      }
     }),
   );
 
@@ -544,10 +574,19 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
   context.subscriptions.push(
     workspace.onDidChangeConfiguration(async (e) => {
-      if (e.affectsConfiguration('pynescript.syntaxHighlighting')) {
+      if (
+        e.affectsConfiguration('pynescript.syntaxHighlighting') ||
+        e.affectsConfiguration('workbench.colorTheme')
+      ) {
         await applyPyneSyntax();
       }
-      if (e.affectsConfiguration('pynescript.lsp')) {
+      if (e.affectsConfiguration('pynescript.inlayHints.parameters')) {
+        await syncInlayEditor();
+      }
+      if (
+        e.affectsConfiguration('pynescript.lsp') ||
+        e.affectsConfiguration('pynescript.install.python')
+      ) {
         log('LSP launch configuration changed — restarting client.');
         try {
           await withClientLock(() => startClient());
@@ -568,6 +607,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
     }),
   );
 
+  await syncInlayEditor();
   await applyPyneSyntax();
 
   try {
@@ -597,10 +637,14 @@ export async function activate(context: ExtensionContext): Promise<void> {
       event.waitUntil(
         (async () => {
           try {
+            const editorConfig = workspace.getConfiguration('editor', document);
             const edits = await commands.executeCommand<TextEdit[]>(
               'vscode.executeFormatDocumentProvider',
               document.uri,
-              { tabSize: 4, insertSpaces: true },
+              {
+                tabSize: editorConfig.get<number>('tabSize') ?? 4,
+                insertSpaces: editorConfig.get<boolean>('insertSpaces') !== false,
+              },
             );
             return edits ?? [];
           } catch (err) {
@@ -639,7 +683,19 @@ export async function activate(context: ExtensionContext): Promise<void> {
   }
   log(`Effective settings: ${JSON.stringify(settings)}`);
   log(`Resolved LSP: ${launch.label} (found=${launch.found})`);
+  log('Trace: set "pyne-lsp.trace.server" to "verbose" and run PYNE: Show Language Server Output.');
   log('Activation complete.');
+}
+
+/** Keep the editor decoration in step with the server's parameter-hint gate. */
+async function syncInlayEditor(): Promise<void> {
+  const on = cfg<boolean>('inlayHints.parameters') === true;
+  const desired = on ? 'on' : 'off';
+  const editor = workspace.getConfiguration('editor', PINESCRIPT);
+  if (editor.get('inlayHints.enabled') === desired) {
+    return;
+  }
+  await editor.update('inlayHints.enabled', desired, ConfigurationTarget.Global, true);
 }
 
 export function deactivate(): Promise<void> | undefined {

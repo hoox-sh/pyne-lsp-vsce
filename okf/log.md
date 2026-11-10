@@ -1,5 +1,11 @@
 # Bundle Update Log
 
+## 2026-11-10
+
+- Editor pass: severity remap, single diagnostic collection, link and lookahead
+  positions, inlay toggle, grammar operator order, AXIS Day, status-bar
+  recovery. See `docs/editor-pass.md`.
+
 ## 2026-11-09
 
 - AXIS pack language surface: canonical id `pinescript`, Convert to v6 UX,

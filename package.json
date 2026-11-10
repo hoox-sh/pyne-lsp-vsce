@@ -139,6 +139,11 @@
         "label": "PYNE Volt",
         "uiTheme": "vs-dark",
         "path": "./themes/pyne-volt-color-theme.json"
+      },
+      {
+        "label": "AXIS Day",
+        "uiTheme": "vs",
+        "path": "./themes/axis-day-color-theme.json"
       }
     ],
     "configurationDefaults": {
@@ -412,6 +417,12 @@
         "description": "Show the resolved language-server launch command"
       },
       {
+        "command": "pynescript.showStatus",
+        "title": "Language Server Status",
+        "category": "PYNE",
+        "description": "Open server output, or choose install / restart when the server is not running"
+      },
+      {
         "command": "pynescript.convertToV6",
         "title": "Convert to Pine v6",
         "category": "PYNE",
@@ -575,6 +586,9 @@
           "command": "pynescript.showLspCommand"
         },
         {
+          "command": "pynescript.showStatus"
+        },
+        {
           "command": "pynescript.convertToV6",
           "when": "editorLangId == pinescript"
         },
@@ -675,7 +689,7 @@
     "package": "npm run compile && node -e \"const v=require('./package.json').version; require('child_process').execSync('npx --yes @vscode/vsce package --no-dependencies --no-git-tag-version --out pyne-vscode-'+v+'.vsix',{stdio:'inherit'})\"",
     "lint": "eslint src",
     "test": "npx tsc -p . && npm run compile && node out/test/runTest.js",
-    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js",
+    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js out/test/links.test.js out/test/syntax-palette.test.js out/test/diagnostics.test.js",
     "edh": "npm run compile && node ./scripts/edh.mjs",
     "test:edh": "npm run compile:tests && node ./scripts/edh.mjs --test"
   },

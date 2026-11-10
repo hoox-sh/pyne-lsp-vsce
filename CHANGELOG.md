@@ -4,6 +4,25 @@ All notable changes to pyne are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Diagnostic severity overrides** use the VS Code scale (Error 0 … Hint 3). They were shifted by one, and Hint was not a real severity.
+- **Pull and push diagnostics** no longer both render. `pyne-lsp` serves `textDocument/diagnostic` and also publishes; the client keeps one collection and still applies severity overrides.
+- **Open Document Link** matches the column on the current line. It missed every URL below line 1.
+- **Lookahead warnings** keep their line after a `//` comment or a string. Comments used to be deleted before the scan, which shifted the underline.
+- **Inlay hints toggle** turns on `pynescript.inlayHints.parameters` together with the editor decoration. The command used to flip only the decoration, so the server sent nothing.
+- **`==`, `!=`, `<=`, `>=`, and `<<` / `>>`** are comparison and shift tokens. A bare `=` was matched first, so `==` highlighted as two assignments.
+- **Indent** after `indicator` / `strategy` / `library` no longer pushes the rest of the file in one level.
+- **Snippets** use `minval` and `label.style_label_up`. `min=` and `label.style.label_up` are not Pine.
+
+### Added
+
+- **AXIS Day**, a light HOOX theme whose Pine token colors stay readable on paper. Dark themes no longer inject the void palette on top of it.
+- **PYNE: Language Server Status** — the status item opens output while the server is running, and an install / restart menu when it is not. A failed start offers the same install action.
+- Changing `pynescript.install.python` restarts the client. Trace logging is `pyne-lsp.trace.server`.
+- Snippets for `var`, `varip`, `method`, `import`, `alertcondition`, `bgcolor`, and a library annotation block.
+- Grammar: `font` / `earnings` / `dividends` / `splits`, `.psc`, series names (`year`, `time`, …) as series rather than functions, `na` as a literal, no `#` line comments.
+
 ## [0.5.8] — 2026-11-09
 
 ### Changed

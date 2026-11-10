@@ -17,6 +17,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { ThemeColor } from 'vscode';
 import { COMMANDS } from './commands';
 import { state } from './state';
 
@@ -28,11 +29,13 @@ export function log(msg: string): void {
   state.output?.appendLine(line);
 }
 
-/** Update the status bar. Click always opens the LSP output channel. */
+/** Update the status bar. Click opens output when the server is up, otherwise a recovery menu. */
 export function setStatus(text: string, tooltip?: string, down = false): void {
   if (!state.statusBar) return;
   state.statusBar.text = text;
-  state.statusBar.command = COMMANDS.showLspOutput;
+  state.statusBar.command = COMMANDS.showStatus;
+  state.statusBar.backgroundColor = down ? new ThemeColor('statusBarItem.errorBackground') : undefined;
+  state.statusBar.color = down ? new ThemeColor('statusBarItem.errorForeground') : undefined;
   const detail = tooltip || text;
   state.statusBar.tooltip = down ? `${detail}\n${DOWN_HINT}` : detail;
   state.statusBar.show();

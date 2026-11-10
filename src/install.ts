@@ -354,7 +354,7 @@ export async function handleMissingServer(label: string): Promise<void> {
         detail:
           'This runs: pip install --upgrade "hoox-pyne[lsp]"\n\n' +
           `Resolved launch: ${label}\n\n` +
-          'You can also run “PYNE: Install Language Server” at any time.',
+          'You can also click the PYNE status item, or run “PYNE: Install Language Server”.',
       },
       'Install now',
       'Later',

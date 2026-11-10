@@ -127,15 +127,75 @@ git tag v0.5.7 && git push origin main --tags
 | **Document links** | Clickable `http(s)` URLs in comments and string literals |
 | **Document color** | `#hex` swatches with `colorPresentation` rewrite |
 | **Library annotation hover** | `//@function` / `//@param` / `//@returns` / `//@type` / `//@field` / `//@variable` render as Markdown cards |
-| **Status bar** | `PYNE LSP` indicator (click → server output) |
+| **Status bar** | `PYNE LSP` indicator (click → output when running, install/restart menu when it is not). Trace: `pyne-lsp.trace.server` |
 | **Auto-detect LSP** | `pyne-lsp` (or alias `pynescript-lsp`) on `PATH`, or `python3 -m pynescript.langserver` |
 | **Auto-install server** | Prompts (or auto-installs) `hoox-pyne[lsp]` with pip when the server is missing |
 | **Pro API** | `PYNE: Smoke /run (one bar)` — POST the buffer plus one synthetic bar to `/run` (not a chart; use AXIS for plots) |
 | **Backend** | `PYNE: Install Backend (Pro API)`, `PYNE: Start Backend`, `PYNE: Test Backend Connection` |
 | **PYNE MCP (recommended)** | Agent-mode tools for Copilot / Claude / Cursor via `pyne-mcp` |
-| **Themes** | **AXIS Void / Hoox Signal / PYNE Volt** — AXIS-matched syntax highlighting + hover cards |
+| **Themes** | **AXIS Void / Hoox Signal / PYNE Volt** (dark) and **AXIS Day** (light) — token colors for this grammar |
 
 Every LSP feature above has a `pynescript.<feature>.enabled` setting and a `PYNE: Toggle <Feature>` palette command, so you can turn individual features off without restarting the server.
+
+## Screenshots
+
+Captured in VS Code with the **AXIS Void** theme (the light shot uses **AXIS Day**). The language server is `pyne-lsp` from `hoox-pyne[lsp]`.
+
+### Syntax highlighting
+
+Namespaces, annotations, hex colors, history refs, UDTs, and comparisons.
+
+![Syntax highlighting in AXIS Void](docs/screenshots/highlighting.png)
+
+### Diagnostics
+
+A parse error from `pyne-lsp` and the static lookahead warning on `request.security` / `lookahead_on`.
+
+![Diagnostics and lookahead warning](docs/screenshots/diagnostics.png)
+
+### Completion
+
+Builtin completion after `ta.`.
+
+![Completion list](docs/screenshots/completion.png)
+
+### Hover
+
+Signature and docs for `ta.rsi`.
+
+![Hover card](docs/screenshots/hover.png)
+
+### Signature help
+
+Parameter hints while the argument list is open.
+
+![Signature help](docs/screenshots/signature.png)
+
+### Formatting
+
+`PYNE: Format Document` rewrites spacing through the language server. The sample has no prose comments, so the server can pretty-print; files with `//` notes only have trailing whitespace trimmed, because the server’s unparser would otherwise drop them.
+
+![Before formatting](docs/screenshots/formatting-before.png)
+
+![Document after formatting](docs/screenshots/formatting.png)
+
+### Inlay hints
+
+Parameter names on `ta.rsi` and `input.int` (`PYNE: Toggle Inlay Hints`, off by default).
+
+![Parameter inlay hints](docs/screenshots/inlays.png)
+
+### Commands
+
+`PYNE: Language Server Status` opens the output channel while the server is running, and an install / restart menu when it is not.
+
+![PYNE command palette](docs/screenshots/commands.png)
+
+### AXIS Day
+
+The light theme uses the same Pine scopes, with token colors darkened so they stay readable on paper.
+
+![AXIS Day light theme](docs/screenshots/theme-day.png)
 
 ### LSP discovery order
 
@@ -182,7 +242,7 @@ Register `pyne-mcp` in `.vscode/mcp.json` for agent-mode tool access. See [PYNE 
 | --- | --- | --- |
 | `pynescript.syntaxHighlighting` | `void` | Pine token palette: `none` / `void` / `signal` / `volt`. Independent of the workbench theme. |
 
-The three contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**) are selected from VS Code's own Color Theme picker; the extension never switches your workbench theme.
+The contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**, **AXIS Day**) are selected from VS Code's own Color Theme picker; the extension never switches your workbench theme. On those themes the matching token colors come from the theme itself, so the dark default palette is not painted over AXIS Day.
 
 ### Language server
 
@@ -272,6 +332,7 @@ Then run **PYNE: Set Pro API Key** (SecretStorage; never `settings.json`).
 | **PYNE: Restart Language Server** | Kill and relaunch the server |
 | **PYNE: Show Language Server Output** | Open the output channel |
 | **PYNE: Show Resolved LSP Launch Command** | Print the command the extension would run |
+| **PYNE: Language Server Status** | Open output when the server is up; otherwise install, restart, or show the launch command |
 | **PYNE: Install Language Server** | `pip install hoox-pyne[lsp]` |
 | **PYNE: Format Document** | Full-document format |
 | **PYNE: Convert to Pine v6** | Rewrite the document toward v6 |

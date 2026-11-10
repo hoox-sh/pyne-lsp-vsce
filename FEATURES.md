@@ -26,7 +26,7 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 | Functionality | Hosted Pro (key) | Self-hosted local | Self-hosted remote | Self-hosted edge | No backend |
 | --- | --- | --- | --- | --- | --- |
 | Pine grammar highlighting (`.pyne` / `.pine` / `.psc` → language id `pinescript`) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Color themes (`pyne-volt`, `hoox-signal`, `axis-void`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Color themes (`pyne-volt`, `hoox-signal`, `axis-void`, light `axis-day`) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **PYNE: Select Syntax Highlighting** (`none` / `void` / `signal` / `volt`) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Snippets (declaration + builtin) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Diagnostics — parse + lint (pull + push) | ✅ | ✅ | ✅ | ✅ | ✅ |

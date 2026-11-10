@@ -1,0 +1,6 @@
+//@version=6
+indicator("Format me",overlay=true)
+fast=ta.ema(close,8)
+slow   =   ta.ema(  close , 21 )
+plot(fast,"Fast",color=color.lime)
+plot(slow,"Slow",color=color.orange)

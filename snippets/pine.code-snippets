@@ -26,12 +26,12 @@
   },
   "PYNE: input.int": {
     "prefix": "input.int",
-    "body": "input.int(${1:14}, \"${2:length}\", min=${3:1})",
+    "body": "input.int(${1:14}, \"${2:length}\", minval=${3:1})",
     "description": "Pine v6 integer input"
   },
   "PYNE: input.float": {
     "prefix": "input.float",
-    "body": "input.float(${1:14.0}, \"${2:length}\", min=${3:0.0}, step=${4:0.1})",
+    "body": "input.float(${1:14.0}, \"${2:length}\", minval=${3:0.0}, step=${4:0.1})",
     "description": "Pine v6 float input"
   },
   "PYNE: input.string": {
@@ -156,12 +156,12 @@
   },
   "PYNE: request.security": {
     "prefix": "request.security",
-    "body": "request.security(${1:\"SYMBOL\"}, ${2:\"timeframe\"}, ${3:expression})",
+    "body": "request.security(${1:syminfo.tickerid}, ${2:\"D\"}, ${3:close}, lookahead=barmerge.lookahead_off)",
     "description": "request.security(symbol, timeframe, expression)"
   },
   "PYNE: label.new": {
     "prefix": "label.new",
-    "body": "label.new(x=${1:bar_index}, y=${2:price}, text=\"${3:label}\", color=color.${4:blue}, textcolor=color.${5:white}, style=label.style.${6:label_up})",
+    "body": "label.new(x=${1:bar_index}, y=${2:price}, text=\"${3:label}\", color=color.${4:blue}, textcolor=color.${5:white}, style=label.style_${6:label_up})",
     "description": "label.new drawing"
   },
   "PYNE: array.new<float>": {
@@ -173,5 +173,40 @@
     "prefix": "triplequote",
     "body": "\"\"\"\n${1:multiline text}\n\"\"\"",
     "description": "Pine v6 triple-quoted multiline string"
+  },
+  "PYNE: var": {
+    "prefix": "var",
+    "body": "var ${1:name} = ${2:na}",
+    "description": "Persistent variable (initialized once)"
+  },
+  "PYNE: varip": {
+    "prefix": "varip",
+    "body": "varip ${1:name} = ${2:na}",
+    "description": "Intrabar-persistent variable"
+  },
+  "PYNE: method": {
+    "prefix": "method",
+    "body": "method ${1:name}(${2:Type} this) =>\n    ${3:this}",
+    "description": "Pine v6 method on a user-defined type"
+  },
+  "PYNE: import": {
+    "prefix": "import",
+    "body": "import ${1:username/LibraryName}/${2:1} as ${3:lib}",
+    "description": "Import a published Pine library"
+  },
+  "PYNE: alertcondition": {
+    "prefix": "alertcondition",
+    "body": "alertcondition(${1:condition}, \"${2:title}\", \"${3:message}\")",
+    "description": "alertcondition(condition, title, message)"
+  },
+  "PYNE: bgcolor": {
+    "prefix": "bgcolor",
+    "body": "bgcolor(${1:condition} ? color.new(color.${2:blue}, 85) : na)",
+    "description": "Background color when a condition is true"
+  },
+  "PYNE: library annotations": {
+    "prefix": "pyneann",
+    "body": "//@function ${1:What this function does}\n//@param ${2:name} ${3:Parameter description}\n//@returns ${4:What the function returns}",
+    "description": "Library annotation block (hover cards)"
   }
 }

@@ -33,7 +33,7 @@
   "autoCloseBefore": ";:.,=}])>` \n\t",
   "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\`\\~\\!\\@\\#\\%\\^\\&\\*\\(\\)\\-\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\.\\<\\>\\/\\?\\s]+)",
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*((if|else|for|while|switch|type|enum|method|export|indicator|strategy|library)\\b.*|.*=>\\s*)$",
+    "increaseIndentPattern": "^\\s*((if|else|for|while|switch|type|enum|method)\\b.*|.*=>\\s*)$",
     "decreaseIndentPattern": "^\\s*(else|//\\s*#?endregion)\\b"
   },
   "folding": {

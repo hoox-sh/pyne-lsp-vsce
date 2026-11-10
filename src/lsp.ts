@@ -25,10 +25,12 @@ import {
   ServerOptions,
   State,
   TransportKind,
+  vsdiag,
 } from 'vscode-languageclient/node';
 import { COMMANDS } from './commands';
 import { cfg, expandWorkspaceVars, serverSettings, settingOn } from './config';
-import { commandOnPath, handleMissingServer, pythonCanImportLangserver } from './install';
+import { filterDiagnostics } from './diagnostics';
+import { commandOnPath, handleMissingServer, installLanguageServer, pythonCanImportLangserver } from './install';
 import { log, setStatus } from './log';
 import { state } from './state';
 
@@ -102,6 +104,22 @@ export function resolveLspLaunch(): {
   };
 }
 
+function diagnosticFilter(): { enabled: boolean; severity?: Record<string, string> } {
+  return {
+    enabled: cfg<boolean>('diagnostics.enabled') !== false,
+    severity: cfg<Record<string, string>>('diagnostics.severity'),
+  };
+}
+
+function mapWorkspaceDiagnosticReport<T extends { kind: string; items?: Parameters<typeof filterDiagnostics>[0] }>(
+  item: T,
+): T {
+  if (item.kind !== vsdiag.DocumentDiagnosticReportKind.full || !item.items) {
+    return item;
+  }
+  return { ...item, items: filterDiagnostics(item.items, diagnosticFilter()) };
+}
+
 export function buildServerOptions(): ServerOptions {
   const launch = resolveLspLaunch();
   // Executable form (stdio). Do not pass TransportKind as a confusing dual field
@@ -139,37 +157,44 @@ export function buildClientOptions(): LanguageClientOptions {
     initializationOptions: serverSettings(),
     middleware: {
       handleDiagnostics(uri, diagnostics, next) {
-        if (cfg<boolean>('diagnostics.enabled') === false) {
+        // pyne-lsp publishes diagnostics and also serves pull
+        // (textDocument/diagnostic). The client keeps a collection for each.
+        // Showing both doubles every squiggle. When pull is advertised, the
+        // pull collection is the one we filter; the push copy is dropped.
+        const pulls = !!state.client?.initializeResult?.capabilities?.diagnosticProvider;
+        if (pulls) {
           next(uri, []);
           return;
         }
-        const overrides = cfg<Record<string, string>>('diagnostics.severity') || {};
-        const keys = Object.keys(overrides);
-        if (keys.length > 0) {
-          const mapped = diagnostics.map((d) => {
-            const code = typeof d.code === 'string' ? d.code : String(d.code ?? '');
-            let override: string | undefined;
-            for (const prefix of keys) {
-              if (code.startsWith(prefix)) {
-                override = overrides[prefix];
-                break;
-              }
-            }
-            if (!override) {
-              return d;
-            }
-            const sev = {
-              Error: 1,
-              Warning: 2,
-              Information: 3,
-              Hint: 4,
-            }[override];
-            return sev !== undefined ? { ...d, severity: sev } : d;
-          });
-          next(uri, mapped);
-          return;
+        next(uri, filterDiagnostics(diagnostics, diagnosticFilter()));
+      },
+      provideDiagnostics(document, previousResultId, token, next) {
+        if (cfg<boolean>('diagnostics.enabled') === false) {
+          return { kind: vsdiag.DocumentDiagnosticReportKind.full, items: [] };
         }
-        next(uri, diagnostics);
+        return Promise.resolve(next(document, previousResultId, token)).then((report) => {
+          if (!report || report.kind !== vsdiag.DocumentDiagnosticReportKind.full) {
+            return report;
+          }
+          return { ...report, items: filterDiagnostics(report.items, diagnosticFilter()) };
+        });
+      },
+      provideWorkspaceDiagnostics(resultIds, token, resultReporter, next) {
+        const reportChunk = (
+          chunk: vsdiag.WorkspaceDiagnosticReportPartialResult | null,
+        ): void => {
+          if (!chunk) {
+            resultReporter(chunk);
+            return;
+          }
+          resultReporter({ items: chunk.items.map(mapWorkspaceDiagnosticReport) });
+        };
+        return Promise.resolve(next(resultIds, token, reportChunk)).then((report) => {
+          if (!report) {
+            return report;
+          }
+          return { ...report, items: report.items.map(mapWorkspaceDiagnosticReport) };
+        });
       },
       // --- Client-side feature gates ---------------------------------------
       // Read live settings so toggles take effect without a server restart.
@@ -329,11 +354,22 @@ export async function startClient(): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     setStatus('$(error) PYNE LSP', msg, true);
     log(`Start failed: ${msg}`);
-    void window.showErrorMessage(
-      `PYNE language server failed to start (${launch.label}). ` +
-        `Install with: pip install "hoox-pyne[lsp]" then set pynescript.lsp.python if needed. ` +
-        `Error: ${msg}`,
-    );
+    const docker = launch.command.toLowerCase() === 'docker';
+    const hint = docker
+      ? 'Check that Docker is running, or set pynescript.lsp.command to auto.'
+      : 'Run PYNE: Install Language Server, or pip install "hoox-pyne[lsp]".';
+    const actions = docker
+      ? (['Show Output'] as const)
+      : (['Install Language Server', 'Show Output'] as const);
+    void window
+      .showErrorMessage(`PYNE language server failed to start (${launch.label}). ${hint} Error: ${msg}`, ...actions)
+      .then((choice) => {
+        if (choice === 'Install Language Server') {
+          void installLanguageServer({ restart: true });
+        } else if (choice === 'Show Output') {
+          state.output?.show(true);
+        }
+      });
     await stopClient();
     throw err;
   }
