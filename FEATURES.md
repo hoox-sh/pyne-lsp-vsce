@@ -33,8 +33,8 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 | Diagnostics — style / semantic (opt-in) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Completion (+ resolve, snippets, user symbols) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Hover cards (AXIS Markdown card + builtin/user docs) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Semantic tokens (`series` / `simple` types + theme colors) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Format Document (local LS; `pynescript.formatting.enabled`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Semantic tokens (`series` / `simple` legend tail + theme colors) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Format Document (comment-preserving when the legend ends with `series`, `simple`; otherwise comment-free only) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Static lookahead grep (`pyne.lookahead.static`; not live-taint) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Signature help while typing | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Definition / references / rename (+ prepare) | ✅ | ✅ | ✅ | ✅ | ✅ |

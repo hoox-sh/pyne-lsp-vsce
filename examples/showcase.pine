@@ -5,6 +5,8 @@ indicator("HOOX Showcase", shorttitle="HOOX", overlay=false)
 // Docs: https://hoox.sh/pyne
 length = input.int(14, "RSI Length", minval=2, maxval=100)
 src = close
+simple float floor = 30.0
+series float drift = close - open
 rsi = ta.rsi(src, length)
 band = color.new(#5B6CFF, 20)
 

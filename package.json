@@ -247,7 +247,7 @@
           "pynescript.diagnostics.severity": {
             "type": "object",
             "default": {},
-            "markdownDescription": "Remap diagnostic severity by lint-code prefix, e.g. `{\"W\": \"Hint\"}` renders `W001`-style warnings as hints. Allowed values: `Error`, `Warning`, `Information`, `Hint`."
+            "markdownDescription": "Remap diagnostic severity by lint-code prefix, e.g. `{\"W\": \"Hint\"}` renders `W001`-style warnings as hints, and `{\"S\": \"Information\"}` covers `S003` / `S004`. Allowed values: `Error`, `Warning`, `Information`, `Hint`."
           },
           "pynescript.diagnostics.style": {
             "type": "boolean",
@@ -257,7 +257,7 @@
           "pynescript.diagnostics.semantic": {
             "type": "boolean",
             "default": false,
-            "description": "Enable opt-in semantic checks: unknown fields/methods on user types, unknown enum members, and user-function argument mismatches. Off by default so incomplete edits never produce speculative errors."
+            "description": "Enable opt-in semantic checks: unknown fields/methods (S001), user-function argument mismatches (S002), a value too weak for its declared type (S003), and bare na with no contextual type (S004). S003 and S004 require a pyne-lsp whose token legend ends with series, simple. Off by default so incomplete edits never produce speculative errors."
           },
           "pynescript.completion.snippets": {
             "type": "boolean",
@@ -689,7 +689,7 @@
     "package": "npm run compile && node -e \"const v=require('./package.json').version; require('child_process').execSync('npx --yes @vscode/vsce package --no-dependencies --no-git-tag-version --out pyne-vscode-'+v+'.vsix',{stdio:'inherit'})\"",
     "lint": "eslint src",
     "test": "npx tsc -p . && npm run compile && node out/test/runTest.js",
-    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js out/test/links.test.js out/test/syntax-palette.test.js out/test/diagnostics.test.js",
+    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js out/test/links.test.js out/test/syntax-palette.test.js out/test/diagnostics.test.js out/test/format-guard.test.js",
     "edh": "npm run compile && node ./scripts/edh.mjs",
     "test:edh": "npm run compile:tests && node ./scripts/edh.mjs --test"
   },

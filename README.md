@@ -143,7 +143,7 @@ Captured in VS Code with the **AXIS Void** theme (the light shot uses **AXIS Day
 
 ### Syntax highlighting
 
-Namespaces, annotations, hex colors, history refs, UDTs, and comparisons.
+Namespaces, annotations, hex colors, history refs, and UDTs. With a server that emits `series` / `simple` tokens, `close` and `series float` use those theme colors.
 
 ![Syntax highlighting in AXIS Void](docs/screenshots/highlighting.png)
 
@@ -173,7 +173,7 @@ Parameter hints while the argument list is open.
 
 ### Formatting
 
-`PYNE: Format Document` rewrites spacing through the language server. The sample has no prose comments, so the server can pretty-print; files with `//` notes only have trailing whitespace trimmed, because the server’s unparser would otherwise drop them.
+`PYNE: Format Document` rewrites spacing through the language server. A server whose semantic-token legend ends with `series` then `simple` keeps line, trailing, and block comments. Older servers would drop those notes, so the client only asks them to format a comment-free buffer.
 
 ![Before formatting](docs/screenshots/formatting-before.png)
 
@@ -262,7 +262,7 @@ The contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**, **AXIS Da
 | `pynescript.diagnostics.enabled` | `true` | Show errors, warnings, hints |
 | `pynescript.diagnostics.severity` | `{}` | Remap severity by lint-code prefix |
 | `pynescript.diagnostics.style` | `false` | Show style-only findings |
-| `pynescript.diagnostics.semantic` | `false` | Opt-in semantic checks |
+| `pynescript.diagnostics.semantic` | `false` | Opt-in checks: S001 unknown member, S002 arity, S003 weak value, S004 bare `na` (S003/S004 need a `series`/`simple` server) |
 | `pynescript.completion.snippets` | `true` | Snippets in autocomplete |
 | `pynescript.hover.enabled` | `true` | Hover cards |
 | `pynescript.inlayHints.parameters` | `false` | Parameter-name hints (opt-in) |

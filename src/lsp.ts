@@ -17,6 +17,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import { window, workspace } from 'vscode';
 import {
@@ -30,6 +31,14 @@ import {
 import { COMMANDS } from './commands';
 import { cfg, expandWorkspaceVars, serverSettings, settingOn } from './config';
 import { filterDiagnostics } from './diagnostics';
+import {
+  allowDocumentFormat,
+  LEGEND_PROBE_CODE,
+  legendFromCapabilities,
+  legendPreservesComments,
+  parseLegendProbe,
+  pythonForLaunch,
+} from './format-guard';
 import { commandOnPath, handleMissingServer, installLanguageServer, pythonCanImportLangserver } from './install';
 import { log, setStatus } from './log';
 import { state } from './state';
@@ -102,6 +111,41 @@ export function resolveLspLaunch(): {
     label: 'pyne-lsp (not found — install: pip install "hoox-pyne[lsp]")',
     found: false,
   };
+}
+
+/** Read the installed server's legend. pygls 2 does not put it on the wire. */
+function probeInstalledLegend(command: string): string[] | undefined {
+  const python = pythonForLaunch(command);
+  if (!python) {
+    return undefined;
+  }
+  try {
+    const stdout = execFileSync(python, ['-c', LEGEND_PROBE_CODE], {
+      encoding: 'utf8',
+      timeout: 8000,
+    });
+    return parseLegendProbe(stdout);
+  } catch (err) {
+    log(`Legend probe failed: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
+  }
+}
+
+function documentFormatAllowed(source: string): boolean {
+  if (cfg<boolean>('formatting.enabled') === false) {
+    return false;
+  }
+  if (allowDocumentFormat(source, state.preservesComments)) {
+    return true;
+  }
+  if (!state.formatSkipLogged) {
+    state.formatSkipLogged = true;
+    log(
+      'Format skipped: this pyne-lsp drops prose comments. ' +
+        'It will format a comment-free buffer. A server whose token legend ends with series, simple keeps comments.',
+    );
+  }
+  return false;
 }
 
 function diagnosticFilter(): { enabled: boolean; severity?: Record<string, string> } {
@@ -249,16 +293,24 @@ export function buildClientOptions(): LanguageClientOptions {
         return next(document, range, token);
       },
       provideDocumentFormattingEdits(document, options, token, next) {
-        if (cfg<boolean>('formatting.enabled') === false) {
+        if (!documentFormatAllowed(document.getText())) {
           return [];
         }
         return next(document, options, token);
       },
       provideDocumentRangeFormattingEdits(document, range, options, token, next) {
-        if (cfg<boolean>('formatting.enabled') === false) {
+        // Old servers unparse the whole buffer, then clip. A comment anywhere
+        // is enough to refuse, same as a full-document request.
+        if (!documentFormatAllowed(document.getText())) {
           return [];
         }
         return next(document, range, options, token);
+      },
+      provideOnTypeFormattingEdits(document, position, ch, options, token, next) {
+        if (!documentFormatAllowed(document.getText())) {
+          return [];
+        }
+        return next(document, position, ch, options, token);
       },
       provideLinkedEditingRange(document, position, token, next) {
         if (!settingOn('linkedEditing.enabled')) {
@@ -285,6 +337,8 @@ export async function stopClient(): Promise<void> {
   if (!state.client) return;
   const c = state.client;
   state.client = undefined;
+  state.preservesComments = false;
+  state.formatSkipLogged = false;
   try {
     if (c.state !== State.Stopped) {
       await c.stop();
@@ -348,8 +402,18 @@ export async function startClient(): Promise<void> {
 
   try {
     await state.client.start();
+    const wireTypes = legendFromCapabilities(state.client.initializeResult?.capabilities);
+    const installedTypes = legendPreservesComments(wireTypes) ? undefined : probeInstalledLegend(launch.command);
+    const tokenTypes = legendPreservesComments(wireTypes) ? wireTypes : installedTypes;
+    state.preservesComments = legendPreservesComments(tokenTypes);
+    const version = state.client.initializeResult?.serverInfo?.version;
     setStatus('$(check) PYNE LSP', `Running: ${launch.label}`);
-    log('Language server started.');
+    log(
+      `Language server started${version ? ` (${version})` : ''}. ` +
+        (state.preservesComments
+          ? 'Legend ends with series, simple — full format keeps comments.'
+          : 'Legend has no series/simple tail — format stays comment-free only.'),
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     setStatus('$(error) PYNE LSP', msg, true);

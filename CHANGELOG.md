@@ -4,6 +4,11 @@ All notable changes to pyne are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Formatting follows the server.** When the semantic-token legend ends with `series` then `simple`, full format is allowed on buffers that contain comments (that server keeps them). Older servers stay comment-free only, so a pretty-print cannot delete `//` notes.
+- **Semantic diagnostics** document `S003` (value too weak for its declared type) and `S004` (bare `na` with no contextual type). Remap both with a severity prefix of `S`.
+
 ### Fixed
 
 - **Diagnostic severity overrides** use the VS Code scale (Error 0 … Hint 3). They were shifted by one, and Hint was not a real severity.

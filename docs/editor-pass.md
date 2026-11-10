@@ -27,8 +27,12 @@ Review of `hoox-sh.pyne` against `pyne-lsp` from `hoox-pyne` 0.6.34, then fixes 
 - Warning colors on all four themes. Status item uses the error background when the server is down and opens **PYNE: Language Server Status**.
 - Format-on-save uses the editor tab size. Trace setting documented as `pyne-lsp.trace.server`.
 
+## Follow-up (server PR hoox-sh/pyne#72, not merged)
+
+The extension treats a legend that **ends with** `series` then `simple` as the comment-preserving formatter. The package version stays `0.6.34` on both sides, so version is not the signal. pygls 2 rebuilds `initialize` capabilities from feature options and does not put that legend on the wire (the handlers are registered without options), so the client also imports `semantic_token_types()` from the same interpreter that launches `pyne-lsp`. Older legends keep the comment-free format guard. Theme keys `series` and `simple` match those names, in that order, and use different colors. `S003` and `S004` are named on the semantic-diagnostics setting. Range and on-type formatting still come from the server; it returns no edit when the line count would change.
+
 ## Not fixed here
 
-- `series` / `simple` semantic token colors are contributed, and the themes color them, but `pyne-lsp` 0.6.34 does not put those types in its legend. Qualifiers and OHLCV names still color through the TextMate grammar. Emitting the types belongs in `hoox-sh/pyne`.
-- Full formatting drops prose comments inside the server, so the client only pretty-prints a buffer that has no `//` notes. Buffers with notes get a trailing-whitespace trim. A comment-preserving formatter is server work.
-- Series / `na` propagation versus Pyne Edge is still a server gap (see `docs/axis-pack-language-review.md`).
+- Released `pyne-lsp` 0.6.34 still has no `series` / `simple` legend and still pretty-prints by dropping prose comments. The client refuses that format instead of trimming whitespace. TextMate still colors those files.
+- The new server does not restore blank lines the unparser drops, and range / on-type format still no-op when the line count changes. Builtin parameter qualifiers are still unchecked.
+- Series / `na` propagation versus Pyne Edge is still incomplete on the server (see `docs/axis-pack-language-review.md` and hoox-sh/pyne#72).

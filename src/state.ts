@@ -38,4 +38,11 @@ export const state = {
   extensionPath: undefined as string | undefined,
   /** SecretStorage for the Pro API key (never settings.json). */
   secrets: undefined as SecretStore | undefined,
+  /**
+   * True when the running server's semantic-token legend ends with
+   * `series`, `simple` — the same change that preserves comments while formatting.
+   */
+  preservesComments: false,
+  /** Log the comment-free format skip once per server start. */
+  formatSkipLogged: false,
 };
