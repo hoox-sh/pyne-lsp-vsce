@@ -32,13 +32,30 @@ export function setLanguageServerRestarter(fn: () => Promise<void>): void {
   restartLanguageServer = fn;
 }
 
-export function commandOnPath(cmd: string): boolean {
+/** Absolute path of *cmd* on `PATH`, or `undefined`. */
+export function commandPath(cmd: string): string | undefined {
   try {
-    if (process.platform === 'win32') {
-      execFileSync('where', [cmd], { stdio: 'ignore' });
-    } else {
-      execFileSync('which', [cmd], { stdio: 'ignore' });
-    }
+    const out = execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], {
+      encoding: 'utf8',
+      timeout: 8000,
+    });
+    return out
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+  } catch {
+    return undefined;
+  }
+}
+
+export function commandOnPath(cmd: string): boolean {
+  return commandPath(cmd) !== undefined;
+}
+
+/** True when *python* exits 0 for a `-c` *script*. */
+function pythonCanRun(python: string, script: string): boolean {
+  try {
+    execFileSync(python, ['-c', script], { stdio: 'ignore', timeout: 8000 });
     return true;
   } catch {
     return false;
@@ -46,16 +63,12 @@ export function commandOnPath(cmd: string): boolean {
 }
 
 export function pythonCanImportLangserver(python: string): boolean {
-  try {
-    execFileSync(
-      python,
-      ['-c', 'import pynescript.langserver; print("ok")'],
-      { stdio: 'ignore', timeout: 8000 },
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  return pythonCanRun(python, 'import pynescript.langserver; print("ok")');
+}
+
+/** True when *python* can run the PYNE MCP server (needs the `[mcp]` extra). */
+export function pythonCanImportMcp(python: string): boolean {
+  return pythonCanRun(python, 'import pynescript.mcp; import mcp; print("ok")');
 }
 
 /** True when *cmd* can be spawned and exits 0 for *args*. */

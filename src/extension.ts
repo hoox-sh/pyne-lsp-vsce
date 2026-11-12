@@ -47,12 +47,6 @@ import { ExecuteCommandRequest } from 'vscode-languageclient/node';
 import { isAxisIdePresent, runOnPro, startBackend, testBackend } from './backend';
 import { COMMANDS } from './commands';
 import {
-  LEGACY_PRO_KEY_SETTING,
-  clearProKey,
-  migrateLegacyProKey,
-  setProKey,
-} from './secrets';
-import {
   cfg,
   PINESCRIPT,
   serverSettings,
@@ -73,6 +67,13 @@ import {
   stopClient,
   withClientLock,
 } from './lsp';
+import { registerMcpServer } from './mcp';
+import {
+  LEGACY_PRO_KEY_SETTING,
+  clearProKey,
+  migrateLegacyProKey,
+  setProKey,
+} from './secrets';
 import { state } from './state';
 import { applyPyneSyntax, themeChoices } from './syntax';
 
@@ -519,6 +520,15 @@ export async function activate(context: ExtensionContext): Promise<void> {
   // even if the language server fails to start.
   registerCommands(context);
 
+  // MCP is independent of the language server: register it early so agent
+  // mode can discover PYNE tools even when no .pine file is open. A missing
+  // MCP API must not break activation (and the language server below).
+  try {
+    registerMcpServer(context);
+  } catch (err) {
+    log(`MCP registration failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const lookaheadDiags = languages.createDiagnosticCollection('pynescript.lookahead');
   context.subscriptions.push(lookaheadDiags);
   const refreshLookahead = (doc: TextDocument): void => {
@@ -565,12 +575,36 @@ export async function activate(context: ExtensionContext): Promise<void> {
       await normalizePineLanguage(doc);
     }
   };
+
+  // The extension now activates at startup for MCP discovery. Do not spawn a
+  // Python language server in workspaces that have no Pine document; start it
+  // lazily on the first Pine file instead.
+  let startingClient = false;
+  const ensureClientStarted = async (): Promise<void> => {
+    if (startingClient || isClientRunning()) {
+      return;
+    }
+    startingClient = true;
+    try {
+      await withClientLock(() => startClient());
+    } catch {
+      /* already reported */
+    } finally {
+      startingClient = false;
+    }
+  };
+
   context.subscriptions.push(
     workspace.onDidOpenTextDocument((doc) => {
-      void normalizePineLanguage(doc);
+      void (async () => {
+        await normalizePineLanguage(doc);
+        if (isPineDocument(doc)) {
+          await ensureClientStarted();
+        }
+      })();
     }),
   );
-  void normalizeOpenDocs();
+  await normalizeOpenDocs();
 
   context.subscriptions.push(
     workspace.onDidChangeConfiguration(async (e) => {
@@ -597,7 +631,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
         e.affectsConfiguration('pynescript.formatting') ||
         e.affectsConfiguration('pynescript.diagnostics') ||
         e.affectsConfiguration('pynescript.completion') ||
-        e.affectsConfiguration('pynescript.inlayHints')
+        e.affectsConfiguration('pynescript.inlayHints') ||
+        e.affectsConfiguration('pynescript.codeLens') ||
+        e.affectsConfiguration('pynescript.inlineCompletion') ||
+        e.affectsConfiguration('pynescript.pro')
       ) {
         log('Feature configuration changed — sending workspace/didChangeConfiguration.');
         getClient()?.sendNotification('workspace/didChangeConfiguration', {
@@ -607,13 +644,34 @@ export async function activate(context: ExtensionContext): Promise<void> {
     }),
   );
 
+  const hasPineWorkspaceFile = async (): Promise<boolean> => {
+    if (!workspace.workspaceFolders?.length) {
+      return false;
+    }
+    try {
+      const found = await workspace.findFiles(
+        '**/*.{pyne,pine,pinev5,pinev6,pinescript,psc}',
+        '**/node_modules/**',
+        1,
+      );
+      return found.length > 0;
+    } catch {
+      return false;
+    }
+  };
+
   await syncInlayEditor();
   await applyPyneSyntax();
 
-  try {
-    await withClientLock(() => startClient());
-  } catch {
-    /* already reported */
+  if (
+    workspace.textDocuments.some(isPineDocument) ||
+    cfg<boolean>('lsp.enabled') === false ||
+    (await hasPineWorkspaceFile())
+  ) {
+    await ensureClientStarted();
+  } else {
+    log('No Pine document or workspace file — language server starts on the first Pine file.');
+    setStatus('$(check) PYNE LSP', 'Idle — starts with a Pine file');
   }
 
   // Format on save: resolve the LSP edits before the file is written. Using
@@ -678,6 +736,9 @@ export async function activate(context: ExtensionContext): Promise<void> {
     'selectionRange.enabled',
     'documentLink.enabled',
     'codeAction.enabled',
+    'codeLens.enabled',
+    'inlineCompletion.enabled',
+    'mcp.enabled',
   ]) {
     settings[key] = cfg<unknown>(key);
   }

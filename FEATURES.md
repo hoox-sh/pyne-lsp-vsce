@@ -38,6 +38,11 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 | Static lookahead grep (`pyne.lookahead.static`; not live-taint) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Signature help while typing | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Definition / references / rename (+ prepare) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Declaration / type definition (UDT) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Call hierarchy (user functions + methods) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Code lens — Convert to v6 / Smoke /run | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Inline completion (opt-in, `pynescript.inlineCompletion.enabled`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MCP tools for agent mode (`pyne_check`, `pyne_lint`, `pyne_compile`, `pyne_run`)² | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Document + workspace symbols | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Document highlight / linked editing | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Semantic tokens (full + range) | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -61,6 +66,11 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 ¹ **Not exposed by the extension today** — reachable from the Pro API directly
 (AXIS, agents, `curl`) and via PYNE MCP runner/data tools. Listed for completeness
 because availability differs per deployment.
+
+² **PYNE MCP server** — registered by the extension when `hoox-pyne[mcp]` is
+installed (`pynescript.mcp.enabled`, default on). Local language tools need no
+backend; `pyne_runner_*` / `pyne_data` still need a configured Pro API URL and
+credentials.
 
 ### Notes
 

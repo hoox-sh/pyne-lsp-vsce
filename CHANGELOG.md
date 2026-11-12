@@ -8,6 +8,8 @@ All notable changes to pyne are documented here.
 
 - **Formatting follows the advertised server.** Full format (comments kept) turns on when `initialize` reports a legend ending in `series`, `simple`, or `serverInfo.version` is at least 0.6.35. hoox-pyne 0.6.34 stays comment-free only.
 - **Semantic diagnostics** document `S003` (value too weak for its declared type) and `S004` (bare `na` with no contextual type). Remap both with a severity prefix of `S`.
+- **VS Code engine floor is 1.102** (`@types/vscode` 1.102) for the MCP provider API. Activation now includes `onStartupFinished` so agent mode can discover the MCP server before a Pine file is open; the language server itself starts only when a Pine document is open or the workspace contains Pine files, so non-Pine workspaces no longer spawn `pyne-lsp` (or show the install prompt) at startup.
+- **Safer MCP discovery.** The `pyne-mcp` fallback now validates that its shebang interpreter can import `pynescript.mcp`, ignoring stale console scripts; the provider registers even when `pynescript.mcp.enabled` is false so toggling it on does not require a reload.
 
 ### Fixed
 
@@ -22,6 +24,8 @@ All notable changes to pyne are documented here.
 
 ### Added
 
+- **PYNE MCP server registration.** The extension registers `pyne-mcp` with VS Code / Copilot agent mode via `contributes.mcpServerDefinitionProviders` + `lm.registerMcpServerDefinitionProvider`, so agent sessions get `pyne_check`, `pyne_lint`, `pyne_compile`, `pyne_run`, `pyne_convert`, and the rest without a manual `.mcp.json`. Discovery prefers a Python that can import `pynescript.mcp`, then `pyne-mcp` on `PATH`; `pynescript.mcp.*` settings override.
+- **Code lenses and inline completion settings.** `pynescript.codeLens.enabled` (default on) shows **Convert to v6** / **Smoke /run** above the script declaration; `pynescript.inlineCompletion.enabled` (default off) gates the new LSP 3.18 ghost text. Both are mirrored to the server and gated client-side.
 - **AXIS Day**, a light HOOX theme whose Pine token colors stay readable on paper. Dark themes no longer inject the void palette on top of it.
 - **PYNE: Language Server Status** — the status item opens output while the server is running, and an install / restart menu when it is not. A failed start offers the same install action.
 - Changing `pynescript.install.python` restarts the client. Trace logging is `pyne-lsp.trace.server`.

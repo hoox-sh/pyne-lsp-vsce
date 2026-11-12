@@ -38,6 +38,9 @@ export function serverSettings(): Record<string, unknown> {
     semanticDiagnostics: cfg<boolean>('diagnostics.semantic') === true,
     inlayHintsParameters: cfg<boolean>('inlayHints.parameters') === true,
     completionUserSymbols: true,
+    codeLensEnabled: cfg<boolean>('codeLens.enabled') !== false,
+    inlineCompletionEnabled: cfg<boolean>('inlineCompletion.enabled') === true,
+    proEnabled: cfg<boolean>('pro.enabled') === true,
   };
 }
 

@@ -24,7 +24,7 @@
     "url": "https://github.com/hoox-sh/pyne-lsp-vsce/issues"
   },
   "engines": {
-    "vscode": "^1.91.0"
+    "vscode": "^1.102.0"
   },
   "extensionKind": [
     "workspace"
@@ -52,6 +52,7 @@
     "strategy"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:pinescript",
     "workspaceContains:**/*.pyne",
     "workspaceContains:**/*.pine",
@@ -65,15 +66,21 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": false,
-      "description": "Starts a local Python language server (pyne-lsp) from the user environment."
+      "description": "Starts local Python processes (pyne-lsp and pyne-mcp) from the user environment."
     },
     "virtualWorkspaces": {
       "supported": false,
-      "description": "Needs a local filesystem and Python environment for pyne-lsp."
+      "description": "Needs a local filesystem and Python environment for pyne-lsp / pyne-mcp."
     }
   },
   "main": "./out/extension.js",
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "pynescript.mcp",
+        "label": "PYNE MCP Server"
+      }
+    ],
     "languages": [
       {
         "id": "pinescript",
@@ -308,6 +315,36 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "Offer code actions such as **Convert to Pine v6** and the `W001` quick fix."
+          },
+          "pynescript.codeLens.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show code lenses above `indicator()` / `strategy()` / `library()` (Convert to v6, and Smoke /run when Pro is enabled)."
+          },
+          "pynescript.inlineCompletion.enabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show deterministic inline (ghost-text) completions for common builtin calls. Off by default; the normal completion list is unchanged."
+          }
+        }
+      },
+      {
+        "title": "PYNE: MCP",
+        "properties": {
+          "pynescript.mcp.enabled": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Register the PYNE MCP server (`pyne-mcp`) with VS Code / Copilot agent mode. Requires the `hoox-pyne[mcp]` extra."
+          },
+          "pynescript.mcp.command": {
+            "type": "string",
+            "default": "auto",
+            "markdownDescription": "MCP server executable. `auto` prefers the Python used for the language server (validated by import), then `pyne-mcp` on `PATH`. Set an absolute path to override."
+          },
+          "pynescript.mcp.python": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Python interpreter used when `pynescript.mcp.command` is `auto`. Tried before `pyne-mcp` on `PATH`; falls back to `pynescript.lsp.python`."
           }
         }
       },
@@ -696,7 +733,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.6.6",
-    "@types/vscode": "1.91.0",
+    "@types/vscode": "1.102.0",
     "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",

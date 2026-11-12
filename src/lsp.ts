@@ -258,6 +258,19 @@ export function buildClientOptions(): LanguageClientOptions {
         }
         return next(document, range, context, token);
       },
+      provideCodeLenses(document, token, next) {
+        if (cfg<boolean>('codeLens.enabled') === false) {
+          return [];
+        }
+        return next(document, token);
+      },
+      provideInlineCompletionItems(document, position, context, token, next) {
+        // Opt-in: an undefined setting means off (unlike settingOn's default).
+        if (cfg<boolean>('inlineCompletion.enabled') !== true) {
+          return [];
+        }
+        return next(document, position, context, token);
+      },
       provideDocumentSemanticTokens(document, token, next) {
         if (!settingOn('semanticTokens.enabled')) {
           return null;

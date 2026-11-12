@@ -179,6 +179,44 @@ describe('settings', () => {
   });
 });
 
+describe('MCP and new language features', () => {
+  it('registers the PYNE MCP server provider and activates at startup', () => {
+    const providers = pkg.contributes.mcpServerDefinitionProviders as Array<{
+      id: string;
+      label?: string;
+    }>;
+    assert.ok(Array.isArray(providers), 'mcpServerDefinitionProviders contribution');
+    assert.ok(
+      providers.some((provider) => provider.id === 'pynescript.mcp'),
+      'missing pynescript.mcp provider',
+    );
+    const events = pkg.activationEvents as string[];
+    assert.ok(events.includes('onStartupFinished'), 'MCP provider needs activation at startup');
+  });
+
+  it('defaults code lenses on, inline completion off, and MCP on', () => {
+    const configuration = Array.isArray(pkg.contributes.configuration)
+      ? pkg.contributes.configuration
+      : [pkg.contributes.configuration];
+    const props = Object.assign(
+      {},
+      ...configuration.map(
+        (group: { properties?: Record<string, { default?: unknown }> }) => group.properties ?? {},
+      ),
+    ) as Record<string, { default?: unknown }>;
+    assert.equal(props['pynescript.codeLens.enabled']?.default, true);
+    assert.equal(props['pynescript.inlineCompletion.enabled']?.default, false);
+    assert.equal(props['pynescript.mcp.enabled']?.default, true);
+    assert.equal(props['pynescript.mcp.command']?.default, 'auto');
+  });
+
+  it('targets a VS Code version with the MCP provider API', () => {
+    const engine = String(pkg.engines.vscode);
+    const minor = Number(engine.replace(/[^0-9.]/g, '').split('.')[1]);
+    assert.ok(minor >= 102, `engines.vscode ${engine} needs >= 1.102`);
+  });
+});
+
 describe('snippets', () => {
   it('parses and includes indicator, strategy, and library', () => {
     const snippets = JSON.parse(fs.readFileSync(SNIPPETS_PATH, 'utf8')) as Record<string, SnippetEntry>;
