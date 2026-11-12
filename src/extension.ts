@@ -40,6 +40,7 @@ import {
   TextDocument,
   TextEdit,
   Uri,
+  version as vscodeVersion,
   window,
   workspace,
 } from 'vscode';
@@ -48,6 +49,7 @@ import { isAxisIdePresent, runOnPro, startBackend, testBackend } from './backend
 import { COMMANDS } from './commands';
 import {
   cfg,
+  effectiveSettingsSnapshot,
   PINESCRIPT,
   serverSettings,
   togglePinescriptEditor,
@@ -58,8 +60,9 @@ import { LOOKAHEAD_STATIC_NOTE, scanPineLookahead } from './lookahead';
 import { installBackend, installLanguageServer, setLanguageServerRestarter } from './install';
 import { isPineDocument, PINE_LANGUAGE_ID, shouldNormalizeToPinescript } from './language';
 import { findUrlOnLine } from './links';
-import { log, setStatus } from './log';
+import { log, logDebug, logSection, setStatus } from './log';
 import {
+  applyServerTrace,
   getClient,
   isClientRunning,
   resolveLspLaunch,
@@ -68,6 +71,7 @@ import {
   withClientLock,
 } from './lsp';
 import { registerMcpServer } from './mcp';
+import { copyTroubleshootingReport } from './report';
 import {
   LEGACY_PRO_KEY_SETTING,
   clearProKey,
@@ -111,26 +115,32 @@ function registerCommands(context: ExtensionContext): void {
 
   context.subscriptions.push(
     commands.registerCommand(COMMANDS.showStatus, async () => {
-      if (isClientRunning()) {
-        state.output?.show(true);
-        return;
-      }
-      const pick = await window.showQuickPick(
-        [
-          {
-            id: 'install',
-            label: '$(cloud-download) Install Language Server',
-            description: 'pip install "hoox-pyne[lsp]"',
-          },
-          { id: 'output', label: '$(output) Show Language Server Output' },
-          { id: 'restart', label: '$(debug-restart) Restart Language Server' },
-          { id: 'launch', label: '$(terminal) Show Resolved Launch Command' },
-        ],
+      const running = isClientRunning();
+      const launch = state.resolvedLaunch;
+      const items: Array<{ id: string; label: string; description?: string }> = [
+        { id: 'output', label: '$(output) Show Language Server Output' },
         {
-          title: 'PYNE',
-          placeHolder: 'PYNE language server is not running',
+          id: 'report',
+          label: '$(clippy) Copy Troubleshooting Report',
+          description: 'launch, Python, versions, settings (redacted)',
         },
-      );
+        { id: 'restart', label: '$(debug-restart) Restart Language Server' },
+        { id: 'launch', label: '$(terminal) Show Resolved Launch Command' },
+      ];
+      if (!running) {
+        items.unshift({
+          id: 'install',
+          label: '$(cloud-download) Install Language Server',
+          description: 'pip install "hoox-pyne[lsp]"',
+        });
+      }
+      const pick = await window.showQuickPick(items, {
+        title: 'PYNE',
+        placeHolder: running
+          ? `Language server running${launch ? `: ${launch.label}` : ''}`
+          : 'PYNE language server is not running',
+        matchOnDescription: true,
+      });
       if (!pick) {
         return;
       }
@@ -138,6 +148,8 @@ function registerCommands(context: ExtensionContext): void {
         await installLanguageServer({ restart: true });
       } else if (pick.id === 'output') {
         state.output?.show(true);
+      } else if (pick.id === 'report') {
+        await copyTroubleshootingReport();
       } else if (pick.id === 'restart') {
         await commands.executeCommand(COMMANDS.restartServer);
       } else if (pick.id === 'launch') {
@@ -242,18 +254,30 @@ function registerCommands(context: ExtensionContext): void {
     commands.registerCommand(COMMANDS.showLspCommand, async () => {
       const launch = resolveLspLaunch();
       const line = `${launch.command} ${launch.args.join(' ')}`.trim();
-      log(`Resolved launch: ${line} (found=${launch.found}, running=${isClientRunning()})`);
+      const running = isClientRunning();
+      logDebug(
+        `Resolved launch: ${line} (found=${launch.found}, running=${running})`,
+      );
       const pick = await window.showInformationMessage(
-        `LSP launch: ${line}`,
-        'Copy',
+        `LSP launch (${running ? 'running' : 'not running'}): ${line}`,
+        'Copy Command',
+        'Copy Report',
         'Show Output',
       );
-      if (pick === 'Copy') {
+      if (pick === 'Copy Command') {
         await env.clipboard.writeText(line);
         void window.showInformationMessage('Copied LSP launch command.');
+      } else if (pick === 'Copy Report') {
+        await copyTroubleshootingReport();
       } else if (pick === 'Show Output') {
         state.output?.show(true);
       }
+    }),
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand(COMMANDS.copyTroubleshootingReport, async () => {
+      await copyTroubleshootingReport();
     }),
   );
 
@@ -506,9 +530,13 @@ export async function activate(context: ExtensionContext): Promise<void> {
     /* leftover setting may already be gone */
   }
   setLanguageServerRestarter(() => withClientLock(() => startClient()));
+  state.extensionVersion = String(context.extension.packageJSON.version ?? '');
   state.output = window.createOutputChannel('PYNE Language Server', { log: true });
   context.subscriptions.push(state.output);
-  log('Activating PYNE extension…');
+  logSection('activation');
+  log(
+    `Activating PYNE ${state.extensionVersion || 'extension'} (VS Code ${vscodeVersion})…`,
+  );
 
   state.statusBar = window.createStatusBarItem(StatusBarAlignment.Right, 100);
   state.statusBar.name = 'PYNE LSP';
@@ -617,6 +645,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
       if (e.affectsConfiguration('pynescript.inlayHints.parameters')) {
         await syncInlayEditor();
       }
+      if (e.affectsConfiguration('pynescript.logging.level')) {
+        log(`Log level set to ${cfg<string>('logging.level') || 'info'}.`);
+      }
+      if (e.affectsConfiguration('pynescript.trace.server')) {
+        await applyServerTrace();
+      }
       if (
         e.affectsConfiguration('pynescript.lsp') ||
         e.affectsConfiguration('pynescript.install.python')
@@ -714,37 +748,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
     }),
   );
 
-  // Snapshot effective settings for the output channel (debug aid).
-  const launch = resolveLspLaunch();
-  const settings: Record<string, unknown> = {};
-  for (const key of [
-    'lsp.enabled',
-    'lsp.command',
-    'lsp.python',
-    'formatting.enabled',
-    'diagnostics.enabled',
-    'diagnostics.style',
-    'diagnostics.semantic',
-    'completion.snippets',
-    'inlayHints.parameters',
-    'formatOnSave.enabled',
-    'hover.enabled',
-    'signatureHelp.enabled',
-    'semanticTokens.enabled',
-    'documentHighlight.enabled',
-    'linkedEditing.enabled',
-    'selectionRange.enabled',
-    'documentLink.enabled',
-    'codeAction.enabled',
-    'codeLens.enabled',
-    'inlineCompletion.enabled',
-    'mcp.enabled',
-  ]) {
-    settings[key] = cfg<unknown>(key);
+  // Keep startup quiet: the full snapshot is debug-level and the launch line is
+  // already logged by startClient, so activation does not re-probe Python.
+  logDebug(`Effective settings: ${JSON.stringify(effectiveSettingsSnapshot())}`);
+  if (state.resolvedLaunch) {
+    logDebug(`Resolved LSP: ${state.resolvedLaunch.label} (found=${state.resolvedLaunch.found})`);
   }
-  log(`Effective settings: ${JSON.stringify(settings)}`);
-  log(`Resolved LSP: ${launch.label} (found=${launch.found})`);
-  log('Trace: set "pyne-lsp.trace.server" to "verbose" and run PYNE: Show Language Server Output.');
   log('Activation complete.');
 }
 

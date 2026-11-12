@@ -36,7 +36,7 @@ import {
 } from 'vscode';
 import { cfg, resolveBackendUrl } from './config';
 import { commandOnPath, commandPath, pythonCanImportMcp } from './install';
-import { log } from './log';
+import { log, logDebug, logWarn } from './log';
 import { resolveLspLaunch } from './lsp';
 
 export const MCP_PROVIDER_ID = 'pynescript.mcp';
@@ -106,7 +106,7 @@ export function resolveMcpLaunch(): McpLaunch {
   if (mcpPath) {
     const firstLine = readFirstLine(mcpPath);
     if (firstLine === undefined) {
-      log('Ignoring pyne-mcp on PATH: cannot read the executable');
+      logWarn('Ignoring pyne-mcp on PATH: cannot read the executable');
     } else {
       const shebang = parseShebang(firstLine);
       if (shebang.kind === 'native') {
@@ -115,7 +115,7 @@ export function resolveMcpLaunch(): McpLaunch {
       if (shebang.kind === 'script' && pythonCanImportMcp(shebang.interpreter)) {
         return { command: 'pyne-mcp', args: [], label: 'pyne-mcp', found: true };
       }
-      log('Ignoring pyne-mcp on PATH: its interpreter cannot import pynescript.mcp (stale install?)');
+      logWarn('Ignoring pyne-mcp on PATH: its interpreter cannot import pynescript.mcp (stale install?)');
     }
   }
 
@@ -190,7 +190,7 @@ export function registerMcpServer(context: ExtensionContext): void {
         }
         cached ??= resolveMcpLaunch();
         if (!cached.found) {
-          log(`MCP server not found: ${cached.label}`);
+          logDebug(`MCP server not found: ${cached.label}`);
           return [];
         }
         const definition = new McpStdioServerDefinition(

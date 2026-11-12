@@ -67,6 +67,54 @@ export async function togglePyneBool(key: string, label: string): Promise<boolea
 
 export const PINESCRIPT = { languageId: PINE_LANGUAGE_ID } as const;
 
+/** Settings captured in the output channel and the troubleshooting report. */
+export const DIAGNOSTIC_SETTING_KEYS = [
+  'lsp.enabled',
+  'lsp.command',
+  'lsp.python',
+  'lsp.args',
+  'formatting.enabled',
+  'formatOnSave.enabled',
+  'diagnostics.enabled',
+  'diagnostics.severity',
+  'diagnostics.style',
+  'diagnostics.semantic',
+  'completion.snippets',
+  'inlayHints.parameters',
+  'hover.enabled',
+  'signatureHelp.enabled',
+  'semanticTokens.enabled',
+  'documentHighlight.enabled',
+  'linkedEditing.enabled',
+  'selectionRange.enabled',
+  'documentLink.enabled',
+  'codeAction.enabled',
+  'codeLens.enabled',
+  'inlineCompletion.enabled',
+  'mcp.enabled',
+  'mcp.command',
+  'mcp.python',
+  'pro.enabled',
+  'backend.useHosted',
+  'backend.url',
+  'backend.hostedUrl',
+  'install.python',
+  'install.venv',
+  'install.createVenv',
+  'logging.level',
+  'trace.server',
+  'syntaxHighlighting',
+] as const;
+
+/** Read every diagnostic setting once (no secrets — the Pro key is SecretStorage). */
+export function effectiveSettingsSnapshot(): Record<string, unknown> {
+  const snapshot: Record<string, unknown> = {};
+  for (const key of DIAGNOSTIC_SETTING_KEYS) {
+    snapshot[key] = cfg<unknown>(key);
+  }
+  return snapshot;
+}
+
 export function pinescriptEditorOn(key: string): boolean {
   const v = workspace.getConfiguration('editor', PINESCRIPT).get(key);
   if (key === 'inlayHints.enabled') {

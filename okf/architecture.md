@@ -26,6 +26,9 @@ formatting, and Convert to v6.
   AXIS owns chart run. This extension does not paint a chart or ship a debugger.
 - **Themes:** AXIS Void, Hoox Signal, and PYNE Volt are dark. AXIS Day is light.
   The status item runs **PYNE: Language Server Status**.
+- **Diagnostics:** `pynescript.logging.level` gates the **PYNE Language Server**
+  channel, `pynescript.trace.server` adds LSP traffic, and
+  **PYNE: Copy Troubleshooting Report** produces a redacted support payload.
 - **Run:** `npm ci && npm run package` builds a VSIX; install with
   `code --install-extension pyne-vscode-*.vsix`.
 - **Verify:** `./scripts/verify.sh` runs `npm run lint`, `npm run check`, and

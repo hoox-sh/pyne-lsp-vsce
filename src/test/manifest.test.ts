@@ -30,6 +30,7 @@ import {
   shouldNormalizeToPinescript,
 } from '../language';
 import { convertSuccessMessage, summarizeSmokeResult } from '../messages';
+import { redactSecrets, safeLogText, truncateForLog } from '../redact';
 
 const EXT_ROOT = path.resolve(__dirname, '../../');
 const PACKAGE_PATH = path.join(EXT_ROOT, 'package.json');
@@ -43,6 +44,7 @@ const EXPECTED_COMMANDS = [
   'pynescript.showLspOutput',
   'pynescript.showLspCommand',
   'pynescript.showStatus',
+  'pynescript.copyTroubleshootingReport',
   'pynescript.convertToV6',
   'pynescript.diagnosticsToggle',
   'pynescript.completionToggle',
@@ -167,6 +169,20 @@ describe('settings', () => {
     assert.ok(!keys.includes('pynescript.pro.apiKey'), 'apiKey must not be a configuration property');
     const blob = JSON.stringify(pkg.contributes.configuration);
     assert.ok(!blob.includes('apiKey'), 'contributes.configuration must not mention apiKey');
+  });
+
+  it('defaults logging to info and LSP trace off', () => {
+    const configuration = Array.isArray(pkg.contributes.configuration)
+      ? pkg.contributes.configuration
+      : [pkg.contributes.configuration];
+    const props = Object.assign(
+      {},
+      ...configuration.map(
+        (group: { properties?: Record<string, { default?: unknown }> }) => group.properties ?? {},
+      ),
+    ) as Record<string, { default?: unknown }>;
+    assert.equal(props['pynescript.logging.level']?.default, 'info');
+    assert.equal(props['pynescript.trace.server']?.default, 'off');
   });
 
   it('does not mention the removed pynescript.theme setting', () => {
@@ -490,5 +506,45 @@ describe('grammar and themes', () => {
       assert.ok(sem.simple, `${theme.label} missing semanticTokenColors.simple`);
       assert.notEqual(sem.series, sem.simple, `${theme.label} series and simple share a color`);
     }
+  });
+});
+
+describe('logging redaction', () => {
+  it('masks HOOX, vendor, bearer, and URL credentials', () => {
+    const input = [
+      'key hx_live_abcdef123456',
+      'token sk-proj-abcdefghijklmnop',
+      'Authorization: Bearer abc.def.ghi123',
+      'https://user:super-secret@example.test/run',
+      '{"apiKey":"plain-text-key"}',
+      'PYNE_API_KEY=another-secret',
+    ].join('\n');
+    const out = redactSecrets(input);
+    assert.doesNotMatch(out, /abcdef123456/);
+    assert.doesNotMatch(out, /sk-proj-abcdefghijklmnop/);
+    assert.doesNotMatch(out, /abc\.def\.ghi123/);
+    assert.doesNotMatch(out, /super-secret/);
+    assert.doesNotMatch(out, /plain-text-key/);
+    assert.doesNotMatch(out, /another-secret/);
+    assert.match(out, /\*\*\*/);
+  });
+
+  it('leaves ordinary launch and version text intact', () => {
+    const text = 'Starting: pyne-lsp -m pynescript.langserver (version 0.6.31)';
+    assert.equal(redactSecrets(text), text);
+  });
+
+  it('truncates oversized payloads and reports omitted characters', () => {
+    const text = 'x'.repeat(120);
+    const out = truncateForLog(text, 100);
+    assert.equal(out.length > 100, true);
+    assert.match(out, /20 more chars/);
+    assert.equal(truncateForLog('short', 100), 'short');
+  });
+
+  it('redacts before truncating so secrets never survive a cut', () => {
+    const out = safeLogText(`hx_live_${'a'.repeat(40)}`, 10);
+    assert.doesNotMatch(out, /a{20}/);
+    assert.match(out, /^hx_live_/);
   });
 });

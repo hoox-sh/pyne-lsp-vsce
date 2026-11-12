@@ -54,6 +54,9 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 | Formatting (document / range / on-type / format-on-save) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Convert to v6 (code action + command, local, undoable) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | PYNE: Restart Server / Show LSP Output / Show LSP Command | ✅ | ✅ | ✅ | ✅ | ✅ |
+| PYNE: Language Server Status (output / report / install / restart / launch) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| PYNE: Copy Troubleshooting Report (redacted) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Output channel levels + LSP trace (`pynescript.logging.level`, `pynescript.trace.server`) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | PYNE: Install Language Server (`hoox-pyne[lsp]`) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **PYNE: Smoke /run (one bar)** (`POST /run`, mode `auto`, **not a chart**) | ✅ key required | ✅ no key needed | ✅ key optional | ✅ tenant key when auth on | ❌ |
 | **PYNE: Test Backend** (`GET /health`) | ✅ | ✅ | ✅ | ✅ (worker `/health`) | ❌ |
@@ -74,6 +77,12 @@ credentials.
 
 ### Notes
 
+- **Troubleshooting.** `pynescript.logging.level` controls the **PYNE Language
+  Server** channel (`off` … `trace`, default `info`); `pynescript.trace.server`
+  adds LSP traffic (`messages` / `compact` / `verbose`, live). Lines are
+  timestamped, deduplicated, capped, and redacted. **PYNE: Copy Troubleshooting
+  Report** collects launch, Python/pyne versions, client state, last error, and
+  settings into one redacted clipboard payload.
 - All LSP features run **inside the editor** against `pyne-lsp`; no column
   changes for them. The only requirement is a Python env with `hoox-pyne[lsp]`.
 - Inferred-type inlay hints were removed entirely (v0.5.3 server, extension

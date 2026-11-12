@@ -2,6 +2,12 @@
 
 ## 2026-11-12
 
+- Logging & troubleshooting: `pynescript.logging.level` (`off`…`trace`),
+  `pynescript.trace.server` (`off`/`messages`/`compact`/`verbose`, live),
+  timestamped/deduplicated/capped channel with secret redaction, a
+  `PYNE: Copy Troubleshooting Report` command, status-bar error tone, and
+  install/retry/report actions on start failures. Startup settings moved to
+  debug so activation no longer re-probes Python.
 - LSP 3.18 / VS Code 1.146 review (`docs/lsp-feature-gaps-2026.md`) and the
   first integrations: declaration, type definition, call hierarchy, code lens,
   inline completion (server); PYNE MCP registration + code-lens/inline gates

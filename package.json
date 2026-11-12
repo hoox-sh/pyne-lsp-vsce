@@ -230,6 +230,49 @@
             },
             "default": [],
             "markdownDescription": "Extra arguments appended to the language server process. With `\"docker\"`, these are the `docker run` arguments."
+          },
+          "pynescript.trace.server": {
+            "type": "string",
+            "enum": [
+              "off",
+              "messages",
+              "compact",
+              "verbose"
+            ],
+            "default": "off",
+            "enumDescriptions": [
+              "Do not log LSP traffic.",
+              "Log request and notification names.",
+              "Log compact request/response traffic.",
+              "Log full request/response payloads (may be large)."
+            ],
+            "markdownDescription": "Trace LSP traffic between the extension and `pyne-lsp` into the **PYNE Language Server** output channel. Applies live; no restart needed."
+          }
+        }
+      },
+      {
+        "title": "PYNE: Logging",
+        "properties": {
+          "pynescript.logging.level": {
+            "type": "string",
+            "enum": [
+              "off",
+              "error",
+              "warn",
+              "info",
+              "debug",
+              "trace"
+            ],
+            "default": "info",
+            "enumDescriptions": [
+              "Silence the output channel.",
+              "Only errors.",
+              "Errors and warnings.",
+              "Errors, warnings, and lifecycle messages (default).",
+              "Adds launch/settings detail for troubleshooting.",
+              "Adds every extension log line."
+            ],
+            "markdownDescription": "Verbosity of the **PYNE Language Server** output channel. Use `debug` when collecting a troubleshooting report. Secrets are redacted before they reach the channel."
           }
         }
       },
@@ -457,7 +500,13 @@
         "command": "pynescript.showStatus",
         "title": "Language Server Status",
         "category": "PYNE",
-        "description": "Open server output, or choose install / restart when the server is not running"
+        "description": "Open the PYNE status menu: output, troubleshooting report, restart, launch command, and install when the server is down"
+      },
+      {
+        "command": "pynescript.copyTroubleshootingReport",
+        "title": "Copy Troubleshooting Report",
+        "category": "PYNE",
+        "description": "Copy a redacted report with launch command, Python, versions, and settings"
       },
       {
         "command": "pynescript.convertToV6",
@@ -624,6 +673,9 @@
         },
         {
           "command": "pynescript.showStatus"
+        },
+        {
+          "command": "pynescript.copyTroubleshootingReport"
         },
         {
           "command": "pynescript.convertToV6",

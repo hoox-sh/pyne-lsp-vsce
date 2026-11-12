@@ -24,6 +24,7 @@ export const COMMANDS = {
   showLspOutput: 'pynescript.showLspOutput',
   showLspCommand: 'pynescript.showLspCommand',
   showStatus: 'pynescript.showStatus',
+  copyTroubleshootingReport: 'pynescript.copyTroubleshootingReport',
   convertToV6: 'pynescript.convertToV6',
   diagnosticsToggle: 'pynescript.diagnosticsToggle',
   completionToggle: 'pynescript.completionToggle',

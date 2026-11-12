@@ -18,12 +18,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import * as fs from 'fs';
-import { window, workspace } from 'vscode';
+import { commands, window, workspace } from 'vscode';
 import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
   State,
+  Trace,
   TransportKind,
   vsdiag,
 } from 'vscode-languageclient/node';
@@ -36,7 +37,7 @@ import {
   serverPreservesComments,
 } from './format-guard';
 import { commandOnPath, handleMissingServer, installLanguageServer, pythonCanImportLangserver } from './install';
-import { log, setStatus } from './log';
+import { log, logDebug, logError, logSection, logWarn, lspTraceChannel, setStatus } from './log';
 import { state } from './state';
 
 /** Default `docker run` when lsp.command is docker and lsp.args is empty. */
@@ -312,8 +313,35 @@ export function buildClientOptions(): LanguageClientOptions {
     },
     // Share our channel so Show Output works even when client is mid-start/fail.
     outputChannel: state.output,
-    traceOutputChannel: state.output,
+    traceOutputChannel: lspTraceChannel(),
   };
+}
+
+/** `pynescript.trace.server` → vscode-jsonrpc trace level. */
+export function configuredTrace(): Trace {
+  switch (String(cfg<string>('trace.server') || 'off').toLowerCase()) {
+    case 'messages':
+      return Trace.Messages;
+    case 'compact':
+      return Trace.Compact;
+    case 'verbose':
+      return Trace.Verbose;
+    default:
+      return Trace.Off;
+  }
+}
+
+/** Apply `pynescript.trace.server` to a running client (no restart needed). */
+export async function applyServerTrace(): Promise<void> {
+  if (!state.client || !isClientRunning()) {
+    return;
+  }
+  try {
+    await state.client.setTrace(configuredTrace());
+    logDebug(`LSP trace set to ${String(cfg<string>('trace.server') || 'off')}.`);
+  } catch (err) {
+    logWarn(`Could not set LSP trace: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export function getClient(): LanguageClient | undefined {
@@ -355,11 +383,13 @@ export async function startClient(): Promise<void> {
   await stopClient();
 
   const launch = resolveLspLaunch();
-  log(`Resolving LSP: ${launch.label} (found=${launch.found})`);
+  state.resolvedLaunch = launch;
+  logSection('language server start');
+  log(`Resolved LSP: ${launch.label} (found=${launch.found})`);
 
   if (!launch.found && (cfg<string>('lsp.command') || 'auto') === 'auto') {
     setStatus('$(error) PYNE LSP', launch.label, true);
-    log('No language server binary/module found on PATH.');
+    logError('No language server binary/module found on PATH.');
     // Fire-and-forget: the prompt/install restarts the client via the lock once
     // it completes, so we must not await here (startClient already holds it).
     void handleMissingServer(launch.label);
@@ -377,7 +407,7 @@ export async function startClient(): Promise<void> {
   );
 
   state.client.onDidChangeState((e) => {
-    log(`client state: ${State[e.oldState]} → ${State[e.newState]}`);
+    logDebug(`client state: ${State[e.oldState]} → ${State[e.newState]}`);
     if (e.newState === State.Running) {
       setStatus(
         '$(check) PYNE LSP',
@@ -389,10 +419,11 @@ export async function startClient(): Promise<void> {
   });
 
   setStatus('$(sync~spin) PYNE LSP…', `Starting: ${launch.label}`);
-  log(`Starting: ${launch.command} ${launch.args.join(' ')}`);
+  logDebug(`Starting: ${launch.command} ${launch.args.join(' ')}`);
 
   try {
     await state.client.start();
+    await applyServerTrace();
     const tokenTypes = legendFromCapabilities(state.client.initializeResult?.capabilities);
     const version = state.client.initializeResult?.serverInfo?.version;
     state.preservesComments = serverPreservesComments({ tokenTypes, version });
@@ -414,21 +445,29 @@ export async function startClient(): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     setStatus('$(error) PYNE LSP', msg, true);
-    log(`Start failed: ${msg}`);
+    logError(`Start failed: ${msg}`);
     const docker = launch.command.toLowerCase() === 'docker';
     const hint = docker
       ? 'Check that Docker is running, or set pynescript.lsp.command to auto.'
       : 'Run PYNE: Install Language Server, or pip install "hoox-pyne[lsp]".';
     const actions = docker
-      ? (['Show Output'] as const)
-      : (['Install Language Server', 'Show Output'] as const);
+      ? (['Show Output', 'Copy Report'] as const)
+      : (['Install Language Server', 'Show Output', 'Retry', 'Copy Report'] as const);
+    // Fire-and-forget so the client lock is released before the user answers.
     void window
-      .showErrorMessage(`PYNE language server failed to start (${launch.label}). ${hint} Error: ${msg}`, ...actions)
+      .showErrorMessage(
+        `PYNE language server failed to start (${launch.label}). ${hint} Error: ${msg}`,
+        ...actions,
+      )
       .then((choice) => {
         if (choice === 'Install Language Server') {
           void installLanguageServer({ restart: true });
         } else if (choice === 'Show Output') {
           state.output?.show(true);
+        } else if (choice === 'Retry') {
+          void withClientLock(() => startClient());
+        } else if (choice === 'Copy Report') {
+          void commands.executeCommand(COMMANDS.copyTroubleshootingReport);
         }
       });
     await stopClient();

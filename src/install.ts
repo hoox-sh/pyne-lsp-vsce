@@ -20,9 +20,9 @@
 import { execFileSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CancellationToken, ConfigurationTarget, ProgressLocation, window, workspace } from 'vscode';
+import { CancellationToken, commands, ConfigurationTarget, ProgressLocation, window, workspace } from 'vscode';
 import { cfg } from './config';
-import { log, setStatus } from './log';
+import { log, logError, setStatus } from './log';
 import { state } from './state';
 
 /** Wired from activate so pip-install success can restart without importing lsp.ts. */
@@ -164,7 +164,7 @@ function ensureVenv(basePython: string, venvDir: string): string | undefined {
     fs.mkdirSync(path.dirname(venvDir), { recursive: true });
     execFileSync(basePython, ['-m', 'venv', venvDir], { stdio: 'ignore', timeout: 120_000 });
   } catch (err) {
-    log(`venv creation failed: ${err instanceof Error ? err.message : String(err)}`);
+    logError(`venv creation failed: ${err instanceof Error ? err.message : String(err)}`);
     return undefined;
   }
   if (fs.existsSync(venvPy) && isRunnable(venvPy, ['--version'])) {
@@ -324,7 +324,7 @@ function installPipPackage(
 
     const tail = result.output.trim().split('\n').slice(-8).join('\n');
     setStatus('$(error) PYNE LSP', `pip install failed (exit ${result.code})`, true);
-    log(`Install failed (exit ${result.code}).\n${tail}`);
+    logError(`Install failed (exit ${result.code}).\n${tail}`);
     void window.showErrorMessage(
       `PYNE: pip install failed (exit ${result.code}). See “PYNE: Show Language Server Output”. ` +
         'Set pynescript.install.venv to a writable virtualenv, or set ' +
@@ -370,11 +370,16 @@ export async function handleMissingServer(label: string): Promise<void> {
           'You can also click the PYNE status item, or run “PYNE: Install Language Server”.',
       },
       'Install now',
+      'Copy Report',
       'Later',
       "Don't ask again",
     );
     if (choice === 'Install now') {
       void installLanguageServer({ restart: true });
+      return;
+    }
+    if (choice === 'Copy Report') {
+      void commands.executeCommand('pynescript.copyTroubleshootingReport');
       return;
     }
     if (choice === "Don't ask again") {

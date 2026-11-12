@@ -46,4 +46,12 @@ export const state = {
   preservesComments: false,
   /** Log the comment-free format skip once per server start. */
   formatSkipLogged: false,
+  /** Last error written to the output channel (for the troubleshooting report). */
+  lastError: undefined as { at: string; message: string } | undefined,
+  /** Last resolved language-server launch (set when startClient runs). */
+  resolvedLaunch: undefined as
+    | { command: string; args: string[]; label: string; found: boolean }
+    | undefined,
+  /** Extension version, captured at activation for the troubleshooting report. */
+  extensionVersion: '',
 };

@@ -127,7 +127,7 @@ git tag v0.5.7 && git push origin main --tags
 | **Document links** | Clickable `http(s)` URLs in comments and string literals |
 | **Document color** | `#hex` swatches with `colorPresentation` rewrite |
 | **Library annotation hover** | `//@function` / `//@param` / `//@returns` / `//@type` / `//@field` / `//@variable` render as Markdown cards |
-| **Status bar** | `PYNE LSP` indicator (click → output when running, install/restart menu when it is not). Trace: `pyne-lsp.trace.server` |
+| **Status bar** | `PYNE LSP` indicator (click → status menu: output, troubleshooting report, install/restart). Trace: `pynescript.trace.server` |
 | **Auto-detect LSP** | `pyne-lsp` (or alias `pynescript-lsp`) on `PATH`, or `python3 -m pynescript.langserver` |
 | **Auto-install server** | Prompts (or auto-installs) `hoox-pyne[lsp]` with pip when the server is missing |
 | **Pro API** | `PYNE: Smoke /run (one bar)` — POST the buffer plus one synthetic bar to `/run` (not a chart; use AXIS for plots) |
@@ -292,6 +292,18 @@ The contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**, **AXIS Da
 | `pynescript.install.createVenv` | `true` | Auto-venv for PEP 668 Python |
 | `pynescript.install.venv` | `""` | Explicit venv directory |
 
+### Logging & troubleshooting
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `pynescript.logging.level` | `info` | Output-channel verbosity: `off`, `error`, `warn`, `info`, `debug`, `trace` |
+| `pynescript.trace.server` | `off` | LSP traffic: `off`, `messages`, `compact`, `verbose` (applies live) |
+
+The channel is timestamped, deduplicated, capped at 5000 lines, and redacts
+keys/tokens/URL credentials before writing. Use **PYNE: Copy Troubleshooting
+Report** for a one-paste report (resolved launch, Python + `hoox-pyne` versions,
+client state, settings); it is redacted too.
+
 ### Pro & backend
 
 | Key | Default | Notes |
@@ -338,7 +350,8 @@ Then run **PYNE: Set Pro API Key** (SecretStorage; never `settings.json`).
 | **PYNE: Restart Language Server** | Kill and relaunch the server |
 | **PYNE: Show Language Server Output** | Open the output channel |
 | **PYNE: Show Resolved LSP Launch Command** | Print the command the extension would run |
-| **PYNE: Language Server Status** | Open output when the server is up; otherwise install, restart, or show the launch command |
+| **PYNE: Language Server Status** | Status menu: output, troubleshooting report, restart, resolved launch, and install when the server is down |
+| **PYNE: Copy Troubleshooting Report** | Copy a redacted launch/Python/version/settings report for an issue |
 | **PYNE: Install Language Server** | `pip install hoox-pyne[lsp]` |
 | **PYNE: Format Document** | Full-document format |
 | **PYNE: Convert to Pine v6** | Rewrite the document toward v6 |
