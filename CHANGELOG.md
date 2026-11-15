@@ -4,6 +4,8 @@ All notable changes to pyne are documented here.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-15
+
 ### Added
 
 - **Hover kind icons.** Hover cards prefix their kind chip with a codicon (`$(symbol-function) `function``) through a client-side middleware. The language server stays plain Markdown for Neovim/Zed. Toggle with `pynescript.hover.icons` (default on). Pinned by `src/test/hover-card.test.ts`.
