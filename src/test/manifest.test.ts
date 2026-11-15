@@ -30,6 +30,13 @@ import {
   shouldNormalizeToPinescript,
 } from '../language';
 import { convertSuccessMessage, summarizeSmokeResult } from '../messages';
+import {
+  formatPct,
+  hottestLines,
+  normalizeRunProfile,
+  profileLineMap,
+  runTotalMs,
+} from '../profile-model';
 import { redactSecrets, safeLogText, truncateForLog } from '../redact';
 
 const EXT_ROOT = path.resolve(__dirname, '../../');
@@ -60,6 +67,8 @@ const EXPECTED_COMMANDS = [
   'pynescript.toggleDocumentLink',
   'pynescript.toggleCodeAction',
   'pynescript.toggleFormatOnSave',
+  'pynescript.toggleProfiler',
+  'pynescript.clearProfile',
   'pynescript.openDocumentLink',
   'pynescript.runOnPro',
   'pynescript.installLanguageServer',
@@ -183,6 +192,24 @@ describe('settings', () => {
     ) as Record<string, { default?: unknown }>;
     assert.equal(props['pynescript.logging.level']?.default, 'info');
     assert.equal(props['pynescript.trace.server']?.default, 'off');
+    assert.equal(props['pynescript.profiler.enabled']?.default, false);
+  });
+
+  it('includes the feature toggles in the troubleshooting snapshot', () => {
+    const source = fs.readFileSync(path.join(EXT_ROOT, 'src/config.ts'), 'utf8');
+    const marker = 'export const DIAGNOSTIC_SETTING_KEYS = [';
+    const start = source.indexOf(marker);
+    assert.ok(start >= 0, `${marker} not found in src/config.ts`);
+    const block = source.slice(start).split('] as const')[0] ?? '';
+    for (const key of [
+      'codeLens.enabled',
+      'inlineCompletion.enabled',
+      'profiler.enabled',
+      'logging.level',
+      'trace.server',
+    ]) {
+      assert.ok(block.includes(`'${key}'`), `DIAGNOSTIC_SETTING_KEYS is missing ${key}`);
+    }
   });
 
   it('does not mention the removed pynescript.theme setting', () => {
@@ -546,5 +573,101 @@ describe('logging redaction', () => {
     const out = safeLogText(`hx_live_${'a'.repeat(40)}`, 10);
     assert.doesNotMatch(out, /a{20}/);
     assert.match(out, /^hx_live_/);
+  });
+});
+
+describe('line profile model', () => {
+  it('unwraps profile and meta.profile payloads', () => {
+    const lines = [{ line: 3, ms: 4, execs: 2 }];
+    assert.deepEqual(normalizeRunProfile({ profile: { lines } })?.lines[0], {
+      line: 3,
+      ms: 4,
+      execs: 2,
+      pct: 100,
+    });
+    assert.equal(
+      normalizeRunProfile({ meta: { profile: { lines } } })?.lines.length,
+      1,
+    );
+  });
+
+  it('recomputes pct from Σ line ms instead of trusting inbound pct', () => {
+    const profile = normalizeRunProfile({
+      lines: [
+        { line: 1, ms: 75, execs: 1, pct: 99 },
+        { line: 2, ms: 25, execs: 1, pct: 1 },
+      ],
+    });
+    assert.ok(profile);
+    assert.equal(profile.lines[0]?.pct, 75);
+    assert.equal(profile.lines[1]?.pct, 25);
+  });
+
+  it('accepts map and tuple rows and merges duplicate lines', () => {
+    const mapProfile = normalizeRunProfile({ line_stats: { '12': { ms: 2, execs: 1 } } });
+    assert.equal(mapProfile?.lines[0]?.line, 12);
+    const tupleProfile = normalizeRunProfile({
+      lines: [
+        [2, 3, 1],
+        [2, 1, 1],
+      ],
+    });
+    assert.equal(tupleProfile?.lines[0]?.ms, 4);
+    assert.equal(tupleProfile?.lines[0]?.execs, 2);
+  });
+
+  it('keeps phase-only profiles but rejects empty payloads', () => {
+    const phase = normalizeRunProfile({ total_ms: 12.5, phases: { parse_ms: 1, eval_ms: 10 } });
+    assert.equal(phase?.totalMs, 12.5);
+    assert.deepEqual(phase?.lines, []);
+    assert.equal(normalizeRunProfile({ status: 'success' }), null);
+  });
+
+  it('formats compact percentages and ranks hot lines', () => {
+    assert.equal(formatPct(0), '0%');
+    assert.equal(formatPct(0.05), '<0.1%');
+    assert.equal(formatPct(4.26), '4.3%');
+    assert.equal(formatPct(42.6), '43%');
+    // The 10% boundary must not render as "10.0%" while 10 renders "10%".
+    assert.equal(formatPct(9.94), '9.9%');
+    assert.equal(formatPct(9.96), '10%');
+    assert.equal(formatPct(10), '10%');
+    const profile = normalizeRunProfile({
+      lines: [
+        { line: 1, ms: 10 },
+        { line: 2, ms: 30 },
+        { line: 3, ms: 20 },
+        { line: 4, ms: 5 },
+      ],
+    });
+    assert.deepEqual([...hottestLines(profile, 2)], [2, 3]);
+    assert.equal(profileLineMap(profile).get(2)?.pct, (30 / 65) * 100);
+  });
+
+  it('reads a run total from the result envelope as the hover fallback', () => {
+    assert.equal(runTotalMs({ meta: { ms: 42.5 } }), 42.5);
+    assert.equal(runTotalMs({ ms: 7 }), 7);
+    assert.equal(runTotalMs({ meta: { profile: { lines: [] } } }), undefined);
+    assert.equal(runTotalMs(null), undefined);
+    assert.equal(runTotalMs('ok'), undefined);
+    const withFallback = normalizeRunProfile(
+      { profile: { lines: [{ line: 2, ms: 5 }] } },
+      runTotalMs({ meta: { ms: 30 } }),
+    );
+    assert.equal(withFallback?.totalMs, 5, 'line ms wins over the envelope total');
+    const phaseOnly = normalizeRunProfile({ phases: { eval_ms: 3 } }, runTotalMs({ ms: 30 }));
+    assert.equal(phaseOnly?.totalMs, 30);
+  });
+
+  it('mentions profiled lines in the smoke toast', () => {
+    const text = summarizeSmokeResult({ profile: { lines: [{ line: 1 }, { line: 2 }] } });
+    assert.match(text, /2 profiled line/);
+    // Shapes the gutter accepts must be reported too (runProfile / line_stats).
+    assert.match(
+      summarizeSmokeResult({ runProfile: { lines: [{ line: 4, ms: 1 }] } }),
+      /1 profiled line/,
+    );
+    assert.match(summarizeSmokeResult({ line_stats: { '7': { ms: 2 } } }), /1 profiled line/);
+    assert.doesNotMatch(summarizeSmokeResult({ status: 'success' }), /profiled line/);
   });
 });

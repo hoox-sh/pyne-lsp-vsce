@@ -2,6 +2,12 @@
 
 ## 2026-11-12
 
+- Line profiler: `pynescript.profiler.enabled` / **PYNE: Toggle Line Profiler**
+  sends `profiler: true` on the one-bar smoke and paints AXIS-style `%` chips at
+  the start of each profiled line, heat accents, and hover details (ms / execs /
+  share + phase split). Model ported from AXIS `results/profiler.ts`; **PYNE:
+  Clear Line Profile** clears it, and editing the buffer or a successful run
+  with no usable data clears it too.
 - Logging & troubleshooting: `pynescript.logging.level` (`off`…`trace`),
   `pynescript.trace.server` (`off`/`messages`/`compact`/`verbose`, live),
   timestamped/deduplicated/capped channel with secret redaction, a

@@ -319,6 +319,11 @@
             "default": true,
             "description": "Show hover cards with signatures, documentation, and type information."
           },
+          "pynescript.hover.icons": {
+            "type": "boolean",
+            "default": true,
+            "description": "Prefix hover kind chips with a codicon (function, namespace, type, …). Turn off for plain Markdown chips."
+          },
           "pynescript.inlayHints.parameters": {
             "type": "boolean",
             "default": false,
@@ -368,6 +373,11 @@
             "type": "boolean",
             "default": false,
             "description": "Show deterministic inline (ghost-text) completions for common builtin calls. Off by default; the normal completion list is unchanged."
+          },
+          "pynescript.profiler.enabled": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Collect per-line timings on **PYNE: Smoke /run (one bar)** and show a `%` chip at the start of each executed line. Requires a backend that accepts `profiler: true` (Pro `/run`, interpret path). Off by default because interpret mode is slower."
           }
         }
       },
@@ -600,6 +610,19 @@
         "description": "Toggle formatting Pine documents on save"
       },
       {
+        "command": "pynescript.toggleProfiler",
+        "title": "Toggle Line Profiler",
+        "category": "PYNE",
+        "enablement": "editorLangId == pinescript",
+        "description": "Collect per-line timings on the next one-bar smoke run and show a % chip at the start of each profiled line"
+      },
+      {
+        "command": "pynescript.clearProfile",
+        "title": "Clear Line Profile",
+        "category": "PYNE",
+        "description": "Remove the per-line profiler chips and heat accents"
+      },
+      {
         "command": "pynescript.openDocumentLink",
         "title": "Open Document Link",
         "category": "PYNE",
@@ -724,6 +747,13 @@
           "command": "pynescript.toggleFormatOnSave"
         },
         {
+          "command": "pynescript.toggleProfiler",
+          "when": "editorLangId == pinescript"
+        },
+        {
+          "command": "pynescript.clearProfile"
+        },
+        {
           "command": "pynescript.openDocumentLink",
           "when": "editorLangId == pinescript"
         },
@@ -764,6 +794,11 @@
           "command": "pynescript.convertToV6",
           "when": "editorLangId == pinescript && !editorReadonly",
           "group": "1_modification@11"
+        },
+        {
+          "command": "pynescript.toggleProfiler",
+          "when": "editorLangId == pinescript",
+          "group": "navigation@10"
         }
       ]
     }
@@ -778,7 +813,7 @@
     "package": "npm run compile && node -e \"const v=require('./package.json').version; require('child_process').execSync('npx --yes @vscode/vsce package --no-dependencies --no-git-tag-version --out pyne-vscode-'+v+'.vsix',{stdio:'inherit'})\"",
     "lint": "eslint src",
     "test": "npx tsc -p . && npm run compile && node out/test/runTest.js",
-    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js out/test/links.test.js out/test/syntax-palette.test.js out/test/diagnostics.test.js out/test/format-guard.test.js",
+    "test:unit": "tsc -p ./ --noEmit && tsc -p ./ && node --test out/test/manifest.test.js out/test/secrets.test.js out/test/lookahead.test.js out/test/links.test.js out/test/syntax-palette.test.js out/test/diagnostics.test.js out/test/format-guard.test.js out/test/hover-card.test.js",
     "edh": "npm run compile && node ./scripts/edh.mjs",
     "test:edh": "npm run compile:tests && node ./scripts/edh.mjs --test"
   },

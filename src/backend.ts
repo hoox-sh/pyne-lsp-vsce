@@ -25,6 +25,7 @@ import { resolvePythonForInstall } from './install';
 import { AXIS_IDE_EXTENSION_ID, AXIS_RUN_SCRIPT_COMMAND, isPineDocument } from './language';
 import { log } from './log';
 import { summarizeSmokeResult } from './messages';
+import { applyProfileToEditor, profilerEnabled } from './profiler';
 import { getProKey } from './secrets';
 import { state } from './state';
 
@@ -132,6 +133,8 @@ export async function runOnPro(): Promise<void> {
     return;
   }
   const source = editor.document.getText();
+  const sourceVersion = editor.document.version;
+  const profileRun = profilerEnabled();
   const url = `${endpoint}/run`;
   // Minimal single-bar OHLCV so the script at least compiles/executes.
   const body = {
@@ -139,12 +142,16 @@ export async function runOnPro(): Promise<void> {
     data: [{ open: 100, high: 101, low: 99, close: 100, volume: 1000 }],
     symbol: 'CHART',
     mode: 'auto',
+    ...(profileRun ? { profiler: true } : {}),
   };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
-  log(`PYNE /run smoke POST ${url} (script ${source.length} chars, 1 bar)`);
+  log(
+    `PYNE /run smoke POST ${url} (script ${source.length} chars, 1 bar` +
+      `${profileRun ? ', profiler on' : ''})`,
+  );
   try {
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     let result: Record<string, unknown>;
@@ -154,18 +161,36 @@ export async function runOnPro(): Promise<void> {
       result = { status: 'error', code: 'INVALID_RESPONSE', message: `HTTP ${res.status}` };
     }
     if (!res.ok) {
+      // Failure bodies can still carry a partial profile; when they don't,
+      // keep the chips that already describe this buffer.
+      if (profileRun) {
+        applyProfileToEditor(editor, result, sourceVersion, { clearOnEmpty: false });
+      }
       void window.showErrorMessage(
         `PYNE /run smoke failed: ${String(result.code ?? 'HTTP ' + res.status)} — ${String(result.message ?? '')}`,
       );
       return;
     }
     if (result.status === 'error') {
+      if (profileRun) {
+        applyProfileToEditor(editor, result, sourceVersion, { clearOnEmpty: false });
+      }
       void window.showErrorMessage(
         `PYNE /run smoke: ${String(result.code ?? 'error')} — ${String(result.message ?? '')}`,
       );
       return;
     }
     log(`PYNE /run smoke result: ${JSON.stringify(result).slice(0, 2000)}`);
+    const applied = profileRun ? applyProfileToEditor(editor, result, sourceVersion) : undefined;
+    if (applied?.reason === 'stale-document') {
+      void window.showWarningMessage(
+        'PYNE profiler discarded the result: the document changed during the run. Re-run to profile the current buffer.',
+      );
+    } else if (applied?.reason === 'no-line-data') {
+      void window.showWarningMessage(
+        'PYNE profiler returned no per-line data. Use mode auto/interpret and a backend that supports profiler=true, or check that the script has instrumented statements.',
+      );
+    }
     const axis = isAxisIdePresent();
     const pick = await window.showInformationMessage(
       summarizeSmokeResult(result),

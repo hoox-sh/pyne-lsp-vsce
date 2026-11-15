@@ -29,6 +29,9 @@ formatting, and Convert to v6.
 - **Diagnostics:** `pynescript.logging.level` gates the **PYNE Language Server**
   channel, `pynescript.trace.server` adds LSP traffic, and
   **PYNE: Copy Troubleshooting Report** produces a redacted support payload.
+- **Profiler:** `pynescript.profiler.enabled` adds `profiler: true` to the
+  one-bar smoke; `profile.lines` is normalized (AXIS-compatible) and painted as
+  per-line `%` chips in the editor.
 - **Run:** `npm ci && npm run package` builds a VSIX; install with
   `code --install-extension pyne-vscode-*.vsix`.
 - **Verify:** `./scripts/verify.sh` runs `npm run lint`, `npm run check`, and

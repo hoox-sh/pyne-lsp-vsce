@@ -51,6 +51,7 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ not available · �
 | Document links (+ resolve) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Inlay hints — parameter names (opt-in, default off) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Inlay hints — inferred types | ❌ removed | ❌ removed | ❌ removed | ❌ removed | ❌ removed |
+| Per-line profiler (`pynescript.profiler.enabled`, `%` chip on each executed line) | ✅ | ✅ | ✅ | ⚠️ worker must pass `profiler` | ❌ |
 | Formatting (document / range / on-type / format-on-save) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Convert to v6 (code action + command, local, undoable) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | PYNE: Restart Server / Show LSP Output / Show LSP Command | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -77,6 +78,16 @@ credentials.
 
 ### Notes
 
+- **Line profiler.** Enable `pynescript.profiler.enabled` (or **PYNE: Toggle
+  Line Profiler**) and run **PYNE: Smoke /run (one bar)**. The request sends
+  `profiler: true`; the Pro `/run` interpret path returns `profile.lines`, and
+  the editor paints a compact `%` chip at the start of each executed line, a
+  heat accent for the top three, and a hover card with ms / execs / share plus
+  the parse/eval phase split. **PYNE: Clear Line Profile** removes it, and any
+  edit to the buffer clears it automatically so the chips never describe stale
+  line numbers. AXIS uses the same payload shape; it draws the chip in a
+  CodeMirror gutter, while VS Code has no gutter-decoration API, so PYNE draws
+  an inline `before` chip at column 0 of the line.
 - **Troubleshooting.** `pynescript.logging.level` controls the **PYNE Language
   Server** channel (`off` … `trace`, default `info`); `pynescript.trace.server`
   adds LSP traffic (`messages` / `compact` / `verbose`, live). Lines are

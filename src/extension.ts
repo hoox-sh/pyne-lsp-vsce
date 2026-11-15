@@ -71,6 +71,7 @@ import {
   withClientLock,
 } from './lsp';
 import { registerMcpServer } from './mcp';
+import { registerProfiler } from './profiler';
 import { copyTroubleshootingReport } from './report';
 import {
   LEGACY_PRO_KEY_SETTING,
@@ -547,6 +548,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   // Register commands first so palette never shows "command not found"
   // even if the language server fails to start.
   registerCommands(context);
+  registerProfiler(context);
 
   // MCP is independent of the language server: register it early so agent
   // mode can discover PYNE tools even when no .pine file is open. A missing

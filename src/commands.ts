@@ -40,6 +40,8 @@ export const COMMANDS = {
   toggleDocumentLink: 'pynescript.toggleDocumentLink',
   toggleCodeAction: 'pynescript.toggleCodeAction',
   toggleFormatOnSave: 'pynescript.toggleFormatOnSave',
+  toggleProfiler: 'pynescript.toggleProfiler',
+  clearProfile: 'pynescript.clearProfile',
   openDocumentLink: 'pynescript.openDocumentLink',
   runOnPro: 'pynescript.runOnPro',
   installLanguageServer: 'pynescript.installLanguageServer',

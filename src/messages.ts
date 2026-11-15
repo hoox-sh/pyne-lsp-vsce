@@ -17,6 +17,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { normalizeRunProfile } from './profile-model';
+
 /** Toast after an in-place v4/v5 → v6 rewrite. */
 export function convertSuccessMessage(fromVersion?: number): string {
   const undo = 'Undo with Ctrl/Cmd+Z if that was not intended.';
@@ -37,6 +39,12 @@ export function summarizeSmokeResult(result: unknown): string {
   const bits: string[] = [];
   if (Array.isArray(rec.plots)) {
     bits.push(`${rec.plots.length} plot(s)`);
+  }
+  // Same normalizer as the gutter, so every payload shape the editor accepts
+  // is also reported in the toast (profile / runProfile / line_stats / …).
+  const profile = normalizeRunProfile(rec);
+  if (profile && profile.lines.length > 0) {
+    bits.push(`${profile.lines.length} profiled line(s)`);
   }
   if (typeof rec.message === 'string' && rec.message.trim()) {
     bits.push(rec.message.trim().slice(0, 120));

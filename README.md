@@ -131,6 +131,7 @@ git tag v0.5.7 && git push origin main --tags
 | **Auto-detect LSP** | `pyne-lsp` (or alias `pynescript-lsp`) on `PATH`, or `python3 -m pynescript.langserver` |
 | **Auto-install server** | Prompts (or auto-installs) `hoox-pyne[lsp]` with pip when the server is missing |
 | **Pro API** | `PYNE: Smoke /run (one bar)` — POST the buffer plus one synthetic bar to `/run` (not a chart; use AXIS for plots) |
+| **Line profiler** | `PYNE: Toggle Line Profiler` → next one-bar smoke sends `profiler: true` and paints a `%` chip at the start of each executed line, a hot-line accent for the top 3, and a hover card with ms / execs / share (AXIS-style gutter look); editing the buffer clears it |
 | **Backend** | `PYNE: Install Backend (Pro API)`, `PYNE: Start Backend`, `PYNE: Test Backend Connection` |
 | **PYNE MCP (recommended)** | Agent-mode tools for Copilot / Claude / Cursor via `pyne-mcp` |
 | **Themes** | **AXIS Void / Hoox Signal / PYNE Volt** (dark) and **AXIS Day** (light) — token colors for this grammar |
@@ -279,6 +280,7 @@ The contributed themes (**AXIS Void**, **Hoox Signal**, **PYNE Volt**, **AXIS Da
 | `pynescript.selectionRange.enabled` | `true` | Smart expand/shrink selection |
 | `pynescript.documentLink.enabled` | `true` | Clickable URLs in comments/strings |
 | `pynescript.codeAction.enabled` | `true` | Convert to v6, `W001` quick fix |
+| `pynescript.profiler.enabled` | `false` | Per-line `%` chips on the next one-bar smoke (needs `profiler` support in `/run`) |
 
 ### Installation
 
@@ -356,6 +358,8 @@ Then run **PYNE: Set Pro API Key** (SecretStorage; never `settings.json`).
 | **PYNE: Format Document** | Full-document format |
 | **PYNE: Convert to Pine v6** | Rewrite the document toward v6 |
 | **PYNE: Smoke /run (one bar)** | POST the buffer plus one synthetic bar to `/run` |
+| **PYNE: Toggle Line Profiler** | Enable per-line timing collection for the next smoke run |
+| **PYNE: Clear Line Profile** | Remove the profiler chips and heat accents |
 | **PYNE: Set Pro API Key** | Store the hosted Pro key in SecretStorage |
 | **PYNE: Clear Pro API Key** | Delete the hosted Pro key from SecretStorage |
 | **PYNE: Install Backend (Pro API)** | `pip install hoox-pyne[pro,lsp]` |

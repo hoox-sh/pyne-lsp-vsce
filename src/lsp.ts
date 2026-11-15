@@ -18,7 +18,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import * as fs from 'fs';
-import { commands, window, workspace } from 'vscode';
+import { Hover, MarkdownString, type MarkedString, commands, window, workspace } from 'vscode';
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -36,6 +36,7 @@ import {
   legendFromCapabilities,
   serverPreservesComments,
 } from './format-guard';
+import { decorateHoverMarkdown } from './hover-card';
 import { commandOnPath, handleMissingServer, installLanguageServer, pythonCanImportLangserver } from './install';
 import { log, logDebug, logError, logSection, logWarn, lspTraceChannel, setStatus } from './log';
 import { state } from './state';
@@ -157,6 +158,13 @@ export function buildServerOptions(): ServerOptions {
   };
 }
 
+/** Normalize an LSP hover item to a MarkdownString so it can carry ThemeIcons. */
+function toMarkdownString(item: MarkdownString | MarkedString): MarkdownString {
+  if (item instanceof MarkdownString) return item;
+  if (typeof item === 'string') return new MarkdownString(item);
+  return new MarkdownString('```' + item.language + '\n' + item.value + '\n```');
+}
+
 export function buildClientOptions(): LanguageClientOptions {
   return {
     documentSelector: [
@@ -227,7 +235,21 @@ export function buildClientOptions(): LanguageClientOptions {
         if (!settingOn('hover.enabled')) {
           return null;
         }
-        return next(document, position, token);
+        return Promise.resolve(next(document, position, token)).then((hover) => {
+          if (!hover || !settingOn('hover.icons')) return hover;
+          let changed = false;
+          const decorated = hover.contents.map((item) => {
+            const markdown = toMarkdownString(item);
+            const value = decorateHoverMarkdown(markdown.value);
+            if (!value) return markdown;
+            changed = true;
+            const nextMarkdown = new MarkdownString(value, true);
+            nextMarkdown.isTrusted = markdown.isTrusted;
+            nextMarkdown.supportHtml = markdown.supportHtml;
+            return nextMarkdown;
+          });
+          return changed ? new Hover(decorated, hover.range) : hover;
+        });
       },
       provideSignatureHelp(document, position, context, token, next) {
         if (!settingOn('signatureHelp.enabled')) {

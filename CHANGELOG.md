@@ -4,8 +4,13 @@ All notable changes to pyne are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Hover kind icons.** Hover cards prefix their kind chip with a codicon (`$(symbol-function) `function``) through a client-side middleware. The language server stays plain Markdown for Neovim/Zed. Toggle with `pynescript.hover.icons` (default on). Pinned by `src/test/hover-card.test.ts`.
+
 ### Changed
 
+- **Hover card theme pass.** The four themes now use a 40% accent hover border, a 10% accent inline-code chip (`textPreformat.background`), a 25% table/rule hairline (`textSeparator.foreground`), and a deeper code-fence inset (`textCodeBlock.background`) so the new hover grammar reads cleanly in AXIS Void, AXIS Day, HOOX Signal, and PYNE Volt.
 - **Quieter, safer logging.** The output channel is timestamped, deduplicates repeated lines, caps at 5000 lines, and redacts HOOX/vendor tokens, bearer headers, URL credentials, and key/value secrets. Startup settings and launch probes moved to `debug`, so `info` stays a lifecycle log and activation no longer re-runs Python discovery.
 - **Formatting follows the advertised server.** Full format (comments kept) turns on when `initialize` reports a legend ending in `series`, `simple`, or `serverInfo.version` is at least 0.6.35. hoox-pyne 0.6.34 stays comment-free only.
 - **Semantic diagnostics** document `S003` (value too weak for its declared type) and `S004` (bare `na` with no contextual type). Remap both with a severity prefix of `S`.
@@ -25,6 +30,7 @@ All notable changes to pyne are documented here.
 
 ### Added
 
+- **Per-line profiler in the editor.** `pynescript.profiler.enabled` (or **PYNE: Toggle Line Profiler**) makes the next **Smoke /run (one bar)** send `profiler: true`. The Pro `/run` `profile.lines` payload is normalized with the same rules as AXIS and painted as a compact `%` chip at the start of each executed line, a heat accent for the top three lines, and a hover card with ms / execs / share plus the parse/eval phase split when the backend reports it. **PYNE: Clear Line Profile** removes it. Results are dropped if the document changed during the run; any edit to the buffer clears the chips; a successful run that returns no usable data clears them rather than leaving stale data behind, while a failed request without a profile leaves them alone.
 - **PYNE MCP server registration.** The extension registers `pyne-mcp` with VS Code / Copilot agent mode via `contributes.mcpServerDefinitionProviders` + `lm.registerMcpServerDefinitionProvider`, so agent sessions get `pyne_check`, `pyne_lint`, `pyne_compile`, `pyne_run`, `pyne_convert`, and the rest without a manual `.mcp.json`. Discovery prefers a Python that can import `pynescript.mcp`, then `pyne-mcp` on `PATH`; `pynescript.mcp.*` settings override.
 - **Code lenses and inline completion settings.** `pynescript.codeLens.enabled` (default on) shows **Convert to v6** / **Smoke /run** above the script declaration; `pynescript.inlineCompletion.enabled` (default off) gates the new LSP 3.18 ghost text. Both are mirrored to the server and gated client-side.
 - **AXIS Day**, a light HOOX theme whose Pine token colors stay readable on paper. Dark themes no longer inject the void palette on top of it.
