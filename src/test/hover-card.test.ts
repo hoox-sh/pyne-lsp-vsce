@@ -44,6 +44,15 @@ describe('decorateHoverMarkdown', () => {
     assert.equal(decorateHoverMarkdown(''), undefined);
   });
 
+  it('does not double-prefix an already decorated card', () => {
+    const card = '`function`\n\nBody';
+    const once = decorateHoverMarkdown(card);
+    assert.equal(once, '$(symbol-function) `function`\n\nBody');
+    assert.equal(decorateHoverMarkdown(once ?? ''), undefined);
+    assert.equal(decorateHoverMarkdown('$(symbol-method) `function`\n'), undefined);
+    assert.equal(decorateHoverMarkdown('$(pulse) `profile`\n\n4.0 ms'), undefined);
+  });
+
   it('keeps the rest of the card byte-for-byte', () => {
     const tail =
       '\n\n```pinescript\nta.sma(close, 14)\n```\n\n---\n[Pine v6](https://example.test)\n';

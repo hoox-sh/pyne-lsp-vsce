@@ -101,7 +101,7 @@ describe('package identity', () => {
     assert.equal(pkg.name, 'pyne');
     assert.equal(pkg.publisher, 'hoox-sh');
     assert.equal(pkg.displayName, 'PYNE Language Support');
-    assert.ok(String(pkg.version).startsWith('0.5'), `unexpected version ${pkg.version}`);
+    assert.ok(String(pkg.version).startsWith('0.6'), `unexpected version ${pkg.version}`);
   });
 });
 

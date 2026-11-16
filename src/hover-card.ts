@@ -26,7 +26,12 @@
  * Neovim/Zed keep the plain Markdown.
  */
 
-/** Shared kind vocabulary → codicon name (without the `$()` wrapper). */
+/**
+ * Shared kind vocabulary → codicon name (without the `$()` wrapper).
+ *
+ * `profile` is client-only, for the gutter line-profile hover. It is not an
+ * LSP symbol kind. Icon is the `pulse` codicon.
+ */
 export const KIND_ICONS: Record<string, string> = {
   function: 'symbol-function',
   method: 'symbol-method',
@@ -42,17 +47,22 @@ export const KIND_ICONS: Record<string, string> = {
   constructor: 'symbol-constructor',
   library: 'library',
   declaration: 'symbol-misc',
+  profile: 'pulse',
 };
 
 const KIND_CHIP = /^`([a-z][a-z0-9_-]*)`/;
+/** A codicon already sits at the start of the card. */
+const LEADING_CODICON = /^\$\([a-z0-9-]+\)/;
 
 /**
- * Prefix the card's leading kind chip with a codicon.
+ * Prefix the card's leading kind chip with one codicon.
  *
- * Returns `undefined` when the markdown has no known kind chip, so callers
- * leave the hover byte-for-byte untouched.
+ * Returns `undefined` when the markdown has no known kind chip at the start,
+ * or a codicon is already present, so callers leave the hover byte-for-byte
+ * untouched. A second call does not stack another icon.
  */
 export function decorateHoverMarkdown(markdown: string): string | undefined {
+  if (LEADING_CODICON.test(markdown)) return undefined;
   const match = KIND_CHIP.exec(markdown);
   if (!match) return undefined;
   const icon = KIND_ICONS[match[1]];

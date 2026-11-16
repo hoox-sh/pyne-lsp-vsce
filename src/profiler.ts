@@ -23,7 +23,7 @@
  * Mirrors AXIS's profiler gutter: a compact `%` chip at the start of each
  * profiled line (VS Code has no gutter-decoration API, so the chip is an inline
  * `before` decoration at column 0), a hot-line accent for the top three lines,
- * and a hover card with ms / execs / share. Profile data comes from the Pro
+ * and a hover card (kind chip, then ms / execs / share). Profile data comes from the Pro
  * `/run` endpoint when `pynescript.profiler.enabled` is on and the request
  * sends `profiler: true`.
  */
@@ -45,6 +45,7 @@ import {
 } from 'vscode';
 import { COMMANDS } from './commands';
 import { cfg } from './config';
+import { decorateHoverMarkdown } from './hover-card';
 import { isPineDocument } from './language';
 import { log, logDebug } from './log';
 import {
@@ -114,32 +115,37 @@ export function clearProfile(showMessage = true): void {
 }
 
 function hoverFor(lineNo: number, stat: { ms: number; execs: number; pct: number }): MarkdownString {
-  const md = new MarkdownString();
-  md.isTrusted = false;
-  md.appendMarkdown(`**Line ${lineNo}**\n\n`);
-  md.appendMarkdown(
-    `${stat.ms.toFixed(1)} ms · ${Math.trunc(stat.execs)} execs · ${stat.pct.toFixed(1)}% of line cost`,
-  );
-  const summary: string[] = [];
+  const lines = [
+    '`profile`',
+    '',
+    `**${lineNo}**`,
+    `${stat.ms.toFixed(1)} ms`,
+    `${Math.trunc(stat.execs)} execs`,
+    `${stat.pct.toFixed(1)}% share`,
+  ];
+  const context: string[] = [];
   if (currentProfile?.totalMs != null) {
-    summary.push(`run total ${currentProfile.totalMs.toFixed(1)} ms`);
+    context.push(`${currentProfile.totalMs.toFixed(1)} ms run`);
   }
   if (currentProfile?.bars != null) {
-    summary.push(`${currentProfile.bars} bar(s)`);
+    context.push(`${currentProfile.bars} ${currentProfile.bars === 1 ? 'bar' : 'bars'}`);
   }
   if (currentProfile?.mode) {
-    summary.push(`mode ${currentProfile.mode}`);
+    context.push(currentProfile.mode);
   }
-  if (summary.length) {
-    md.appendMarkdown(`\n\n${summary.join(' · ')}`);
+  if (context.length) {
+    lines.push('', context.join(' · '));
   }
   const phases = Object.entries(currentProfile?.phases ?? {})
     .filter(([, ms]) => ms > 0)
     .map(([key, ms]) => `${key.replace(/_ms$/, '')} ${ms.toFixed(1)} ms`)
     .join(' · ');
   if (phases) {
-    md.appendMarkdown(`\n\nPhases: ${phases}`);
+    lines.push('', phases);
   }
+  const card = lines.join('\n');
+  const md = new MarkdownString(decorateHoverMarkdown(card) ?? card, true);
+  md.isTrusted = false;
   return md;
 }
 

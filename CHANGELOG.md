@@ -4,6 +4,12 @@ All notable changes to pyne are documented here.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-11-16
+
+### Changed
+
+- **Hover cards.** A known kind chip gets one codicon, and decorating twice does not stack a second icon. The kind chip, code fence, and rules are easier to read on AXIS Void, AXIS Day, HOOX Signal, and PYNE Volt. The line-profiler gutter hover uses the same compact chip (line, ms, execs, share, and the phase split when the run reports it).
+
 ## [0.6.0] — 2026-11-15
 
 ### Added
